@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "PexCoin Trading Platform"
+version = "1.0.0"
+id = "artifacts/pexcoin"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22770
+
+[services.development]
+run = "pnpm --filter @workspace/pexcoin run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pexcoin", "run", "build" ]
+publicDir = "artifacts/pexcoin/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22770"
+BASE_PATH = "/"
