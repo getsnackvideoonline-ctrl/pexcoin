@@ -82,8 +82,8 @@ export default function Dashboard() {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : transactions && transactions.length > 0 ? (
-              <div className="rounded-md border">
-                <Table>
+              <div className="rounded-md border overflow-x-auto">
+                <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Type</TableHead>

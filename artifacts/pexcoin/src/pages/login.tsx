@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLogin, useGetMe } from "@workspace/api-client-react";
 import { setToken } from "@/lib/auth-utils";
@@ -18,13 +18,16 @@ export default function Login() {
   const { toast } = useToast();
   
   const login = useLogin();
-  
   const { data: user } = useGetMe({ query: { retry: false } });
   
-  if (user) {
-    setLocation("/dashboard");
-    return null;
-  }
+  // Fix: use useEffect for redirect instead of calling setLocation during render
+  useEffect(() => {
+    if (user) {
+      setLocation("/dashboard");
+    }
+  }, [user, setLocation]);
+
+  if (user) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +35,12 @@ export default function Login() {
       onSuccess: (data) => {
         setToken(data.token);
         toast({ title: "Logged in successfully" });
-        window.location.href = "/dashboard"; // Full reload to ensure interceptor catches token
+        setLocation("/dashboard");
       },
       onError: (error: any) => {
         toast({ 
           title: "Login failed", 
-          description: error.error || "An error occurred",
+          description: error?.data?.error || error?.message || "An error occurred",
           variant: "destructive"
         });
       }
@@ -56,7 +59,11 @@ export default function Login() {
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register" onClick={() => setLocation("/register")}>Register</TabsTrigger>
+                <Link href="/register" className="contents">
+                  <TabsTrigger value="register" asChild>
+                    <span>Register</span>
+                  </TabsTrigger>
+                </Link>
               </TabsList>
               <TabsContent value="login">
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -64,11 +71,13 @@ export default function Login() {
                     <Label htmlFor="email">Email</Label>
                     <Input 
                       id="email" 
-                      type="email" 
+                      type="email"
+                      autoComplete="email"
                       value={email} 
                       onChange={(e) => setEmail(e.target.value)} 
-                      required 
+                      required
                       className="font-mono text-sm"
+                      data-testid="input-email"
                     />
                   </div>
                   <div className="space-y-2">
@@ -80,15 +89,23 @@ export default function Login() {
                     </div>
                     <Input 
                       id="password" 
-                      type="password" 
+                      type="password"
+                      autoComplete="current-password"
                       value={password} 
                       onChange={(e) => setPassword(e.target.value)} 
-                      required 
+                      required
+                      data-testid="input-password"
                     />
                   </div>
-                  <Button type="submit" className="w-full font-bold" disabled={login.isPending}>
+                  <Button type="submit" className="w-full font-bold" disabled={login.isPending} data-testid="button-login">
                     {login.isPending ? "Logging in..." : "Log In"}
                   </Button>
+                  <p className="text-center text-sm text-muted-foreground">
+                    Don't have an account?{" "}
+                    <Link href="/register" className="text-primary hover:underline font-medium">
+                      Register
+                    </Link>
+                  </p>
                 </form>
               </TabsContent>
             </Tabs>

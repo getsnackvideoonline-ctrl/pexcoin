@@ -269,8 +269,8 @@ export default function AdminDashboard() {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : (
-                  <div className="rounded-md border border-border/40">
-                    <Table>
+                  <div className="rounded-md border border-border/40 overflow-x-auto">
+                    <Table className="min-w-[700px]">
                       <TableHeader className="bg-black/40">
                         <TableRow className="hover:bg-transparent">
                           <TableHead>ID</TableHead>
@@ -352,8 +352,8 @@ export default function AdminDashboard() {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : (
-                  <div className="rounded-md border border-border/40">
-                    <Table>
+                  <div className="rounded-md border border-border/40 overflow-x-auto">
+                    <Table className="min-w-[800px]">
                       <TableHeader className="bg-black/40">
                         <TableRow className="hover:bg-transparent">
                           <TableHead>ID</TableHead>
