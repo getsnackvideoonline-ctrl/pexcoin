@@ -23,6 +23,7 @@ export const RegisterBody = zod.object({
   password: zod.string(),
   name: zod.string(),
   phone: zod.string().nullish(),
+  inviteCode: zod.string().min(6),
 });
 
 /**
@@ -62,6 +63,9 @@ export const GetMeResponse = zod.object({
   phone: zod.string().nullish(),
   role: zod.string(),
   createdAt: zod.string(),
+  inviteCode: zod.string(),
+  referredBy: zod.number().nullish(),
+  commissionEarned: zod.number(),
 });
 
 /**
@@ -149,6 +153,9 @@ export const AdminGetUsersResponseItem = zod.object({
   usdtBalance: zod.number(),
   btcBalance: zod.number(),
   ethBalance: zod.number(),
+  inviteCode: zod.string(),
+  referredBy: zod.number().nullish(),
+  commissionEarned: zod.number(),
   createdAt: zod.string(),
 });
 export const AdminGetUsersResponse = zod.array(AdminGetUsersResponseItem);
@@ -170,6 +177,9 @@ export const AdminGetUserResponse = zod.object({
   usdtBalance: zod.number(),
   btcBalance: zod.number(),
   ethBalance: zod.number(),
+  inviteCode: zod.string(),
+  referredBy: zod.number().nullish(),
+  commissionEarned: zod.number(),
   createdAt: zod.string(),
 });
 
@@ -198,6 +208,9 @@ export const AdminUpdateUserResponse = zod.object({
   usdtBalance: zod.number(),
   btcBalance: zod.number(),
   ethBalance: zod.number(),
+  inviteCode: zod.string(),
+  referredBy: zod.number().nullish(),
+  commissionEarned: zod.number(),
   createdAt: zod.string(),
 });
 
