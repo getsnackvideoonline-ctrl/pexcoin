@@ -12,6 +12,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Link } from "wouter";
 import { CheckCircle2, XCircle, Loader2, Gift } from "lucide-react";
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 type InviteStatus = "idle" | "checking" | "valid" | "invalid";
 
 export default function Register() {
@@ -52,7 +54,7 @@ export default function Register() {
     }
     setInviteStatus("checking");
     try {
-      const res = await fetch(`/api/auth/invite/validate?code=${encodeURIComponent(code.toUpperCase())}`);
+      const res = await fetch(`${BASE}/api/auth/invite/validate?code=${encodeURIComponent(code.toUpperCase())}`);
       const data = await res.json();
       if (data.valid) {
         setInviteStatus("valid");

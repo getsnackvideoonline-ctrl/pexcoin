@@ -37,7 +37,7 @@ function generateAdminToken(): string {
 
 function isAdmin(req: { headers: { authorization?: string } }): boolean {
   const auth = getAuthUser(req);
-  return auth?.role === "admin";
+  return auth?.role === "admin" || auth?.role === "super_admin";
 }
 
 function verifyAdminToken(token: string): boolean {
@@ -77,7 +77,7 @@ router.post("/admin/login", async (req, res): Promise<void> => {
   }
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, username));
-  if (user && user.role === "admin" && user.password === hashPassword(password)) {
+  if (user && (user.role === "admin" || user.role === "super_admin") && user.password === hashPassword(password)) {
     const token = generateAdminToken();
     const response = AdminLoginResponse.parse({ token, role: "admin" });
     res.json(response);
@@ -296,6 +296,28 @@ router.post("/admin/transactions/:id/reject", async (req, res): Promise<void> =>
     formatTransaction(joined.transaction, joined.userEmail ?? "unknown")
   );
   res.json(response);
+});
+
+router.get("/admin/invite-tree", async (req, res): Promise<void> => {
+  if (!checkAdminAuth(req, res)) return;
+
+  const allUsers = await db
+    .select({
+      id: usersTable.id,
+      email: usersTable.email,
+      name: usersTable.name,
+      role: usersTable.role,
+      inviteCode: usersTable.inviteCode,
+      referredBy: usersTable.referredBy,
+      createdAt: usersTable.createdAt,
+    })
+    .from(usersTable)
+    .orderBy(usersTable.id);
+
+  res.json(allUsers.map((u) => ({
+    ...u,
+    createdAt: u.createdAt.toISOString(),
+  })));
 });
 
 router.get("/admin/stats", async (req, res): Promise<void> => {

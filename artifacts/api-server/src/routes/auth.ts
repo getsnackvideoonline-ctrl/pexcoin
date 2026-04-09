@@ -180,5 +180,25 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   res.json(response);
 });
 
+router.get("/auth/referrals", async (req, res): Promise<void> => {
+  const auth = getAuthUser(req);
+  if (!auth) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const referrals = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      createdAt: usersTable.createdAt,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.referredBy, auth.userId));
+
+  res.json(referrals.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })));
+});
+
 export { verifyToken };
 export default router;
