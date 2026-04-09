@@ -283,3 +283,82 @@ export const AdminGetStatsResponse = zod.object({
   pendingTransactions: zod.number(),
   activeUsers: zod.number(),
 });
+
+/**
+ * @summary Place a trade order
+ */
+export const PlaceOrderBody = zod.object({
+  symbol: zod.string(),
+  side: zod.enum(["buy", "sell"]),
+  type: zod.enum(["market", "limit"]),
+  amount: zod.number().positive(),
+  price: zod.number().positive().optional(),
+  total: zod.number().positive().optional(),
+});
+
+export const OrderItem = zod.object({
+  id: zod.number(),
+  symbol: zod.string(),
+  side: zod.string(),
+  type: zod.string(),
+  amount: zod.number(),
+  price: zod.number().nullish(),
+  status: zod.string(),
+  filledAmount: zod.number(),
+  avgPrice: zod.number().nullish(),
+  total: zod.number().nullish(),
+  createdAt: zod.string(),
+});
+
+export const PlaceOrderResponse = OrderItem;
+export const GetMyOrdersResponse = zod.array(OrderItem);
+export const CancelOrderParams = zod.object({ id: zod.coerce.number() });
+
+/**
+ * @summary Get coin balances from trading
+ */
+export const CoinBalanceItem = zod.object({
+  symbol: zod.string(),
+  amount: zod.number(),
+});
+export const GetCoinBalancesResponse = zod.array(CoinBalanceItem);
+
+/**
+ * @summary Market data
+ */
+export const CandleItem = zod.object({
+  time: zod.number(),
+  open: zod.number(),
+  high: zod.number(),
+  low: zod.number(),
+  close: zod.number(),
+  volume: zod.number(),
+});
+export const GetCandlesResponse = zod.array(CandleItem);
+
+export const OrderBookLevel = zod.tuple([zod.number(), zod.number()]);
+export const GetOrderBookResponse = zod.object({
+  bids: zod.array(OrderBookLevel),
+  asks: zod.array(OrderBookLevel),
+  lastPrice: zod.number(),
+});
+
+export const RecentTradeItem = zod.object({
+  id: zod.number(),
+  price: zod.number(),
+  amount: zod.number(),
+  side: zod.enum(["buy", "sell"]),
+  time: zod.number(),
+});
+export const GetRecentTradesResponse = zod.array(RecentTradeItem);
+
+export const MarketStatsResponse = zod.object({
+  symbol: zod.string(),
+  price: zod.number(),
+  change: zod.number(),
+  changePercent: zod.number(),
+  high24h: zod.number(),
+  low24h: zod.number(),
+  volume24h: zod.number(),
+  quoteVolume24h: zod.number(),
+});
