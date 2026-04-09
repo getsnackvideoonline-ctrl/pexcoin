@@ -24,8 +24,13 @@ PexCoin Trading Platform — a full crypto exchange platform clone of pexcoin.on
 - Login/Register: Tabbed auth interface with email + password
 - Dashboard: User balance (USDT, BTC, ETH) + transaction history
 - Deposit/Withdraw pages
+- **Trade page**: Live AreaChart (Recharts), buy/sell order panel (market & limit), market overview grid
+- **Portfolio page**: PieChart allocation, 30-day area chart, holdings table, recent transactions
+- **Buy Crypto page**: Stripe payment integration with packages, fallback UI when Stripe not configured
+- **AI Assistant page**: Streaming GPT chat via SSE, conversation management with sidebar
 - Admin login: 网站管理中心 (Chinese title), verification code captcha
 - Admin dashboard: Stats, user management, transaction approval/rejection
+- Responsive header with authenticated nav: Markets, Trade, Portfolio, Buy Crypto, Deposit, AI Assistant
 
 ### Backend (artifacts/api-server)
 - Auth routes: /api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/me
@@ -33,6 +38,17 @@ PexCoin Trading Platform — a full crypto exchange platform clone of pexcoin.on
 - Transaction routes: /api/transactions (deposit/withdrawal)
 - User balance route: /api/users/balance
 - Admin routes: /api/admin/login, /api/admin/users, /api/admin/transactions, /api/admin/stats
+- **OpenAI routes**: /api/openai/conversations (CRUD) + /api/openai/conversations/:id/messages (SSE streaming)
+- **Stripe routes**: /api/stripe/products, /api/stripe/checkout, /api/stripe/webhook (registered before express.json!)
+
+### Database (lib/db)
+- users, transactions, invites tables (original)
+- **conversations** table: id, userId (FK → users), title, createdAt
+- **messages** table: id, conversationId (FK → conversations), role, content, createdAt
+
+### Integrations
+- **OpenAI**: Replit AI Integrations proxy — no API key needed (billed to Replit credits)
+- **Stripe**: connector ID `connector:ccfg_stripe_01K611P4YQR0SZM11XFRQJC44Y` — propose via `proposeIntegration` to activate
 
 ## Admin Credentials
 - Username: `admin`

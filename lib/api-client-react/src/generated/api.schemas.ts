@@ -156,3 +156,52 @@ export interface AdminStats {
   pendingTransactions: number;
   activeUsers: number;
 }
+
+export interface OpenaiConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export interface OpenaiMessage {
+  id: number;
+  conversationId: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CreateOpenaiConversationBody {
+  title: string;
+}
+
+export interface SendOpenaiMessageBody {
+  content: string;
+}
+
+export interface OpenaiConversationWithMessages {
+  id: number;
+  title: string;
+  createdAt: string;
+  messages: OpenaiMessage[];
+}
+
+export interface OpenaiError {
+  error: string;
+}
+
+export interface CreateCheckoutBody {
+  priceId: string;
+  successUrl?: string;
+  cancelUrl?: string;
+}
+
+export interface CheckoutResponse {
+  url: string;
+}
+
+export type StripeProductsResponseDataItem = { [key: string]: unknown };
+
+export interface StripeProductsResponse {
+  data: StripeProductsResponseDataItem[];
+}

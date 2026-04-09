@@ -4,7 +4,7 @@ import { useGetMe, useLogout, getGetMeQueryKey } from "@workspace/api-client-rea
 import { useQueryClient } from "@tanstack/react-query";
 import { removeToken } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
-import { Menu, X, BarChart2 } from "lucide-react";
+import { Menu, X, BarChart2, Bot, TrendingUp, Wallet, PieChart, CreditCard } from "lucide-react";
 
 export function Header() {
   const { data: user } = useGetMe({ query: { retry: false } });
@@ -30,12 +30,13 @@ export function Header() {
     });
   };
 
-  const navLink = (href: string, label: string) => (
+  const navLink = (href: string, label: string, icon?: React.ReactNode) => (
     <Link
       href={href}
       onClick={() => setMobileOpen(false)}
-      className={`transition-colors hover:text-foreground ${location === href ? "text-foreground font-semibold" : "text-foreground/60"}`}
+      className={`flex items-center gap-1.5 transition-colors hover:text-foreground ${location === href ? "text-foreground font-semibold" : "text-foreground/60"}`}
     >
+      {icon}
       {label}
     </Link>
   );
@@ -50,19 +51,25 @@ export function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-          {navLink("/", "Markets")}
-          {user && navLink("/dashboard", "Dashboard")}
-          {user && navLink("/deposit", "Deposit")}
-          {user && navLink("/withdraw", "Withdraw")}
+        <nav className="hidden md:flex items-center gap-5 text-sm font-medium">
+          {navLink("/", "Markets", <TrendingUp className="h-3.5 w-3.5" />)}
+          {user && navLink("/trade", "Trade", <BarChart2 className="h-3.5 w-3.5" />)}
+          {user && navLink("/portfolio", "Portfolio", <PieChart className="h-3.5 w-3.5" />)}
+          {user && navLink("/buy-crypto", "Buy Crypto", <CreditCard className="h-3.5 w-3.5" />)}
+          {user && navLink("/deposit", "Deposit", <Wallet className="h-3.5 w-3.5" />)}
+          {user && navLink("/ai-assistant", "AI Assistant", <Bot className="h-3.5 w-3.5" />)}
         </nav>
 
         {/* Desktop Auth */}
         <div className="hidden md:flex items-center gap-2">
           {user ? (
             <>
-              <span className="text-muted-foreground text-sm truncate max-w-[180px]">{user.email}</span>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>Logout</Button>
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  {user.email?.split("@")[0]}
+                </Button>
+              </Link>
+              <Button variant="outline" size="sm" onClick={handleLogout}>Logout</Button>
             </>
           ) : (
             <>
@@ -88,20 +95,32 @@ export function Header() {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-border/40 bg-background/98 px-4 py-4 flex flex-col gap-4 text-sm font-medium">
-          <Link href="/" onClick={() => setMobileOpen(false)} className="text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
-            Markets
+        <div className="md:hidden border-t border-border/40 bg-background/98 px-4 py-4 flex flex-col gap-3 text-sm font-medium">
+          <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+            <TrendingUp className="h-4 w-4" /> Markets
           </Link>
           {user ? (
             <>
-              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
-                Dashboard
+              <Link href="/trade" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+                <BarChart2 className="h-4 w-4" /> Trade
               </Link>
-              <Link href="/deposit" onClick={() => setMobileOpen(false)} className="text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
-                Deposit
+              <Link href="/portfolio" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+                <PieChart className="h-4 w-4" /> Portfolio
               </Link>
-              <Link href="/withdraw" onClick={() => setMobileOpen(false)} className="text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+              <Link href="/buy-crypto" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+                <CreditCard className="h-4 w-4" /> Buy Crypto
+              </Link>
+              <Link href="/deposit" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+                <Wallet className="h-4 w-4" /> Deposit
+              </Link>
+              <Link href="/withdraw" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
                 Withdraw
+              </Link>
+              <Link href="/ai-assistant" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+                <Bot className="h-4 w-4" /> AI Assistant
+              </Link>
+              <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2 text-foreground/70 hover:text-foreground transition-colors py-2 border-b border-border/30">
+                Dashboard
               </Link>
               <div className="pt-2">
                 <p className="text-xs text-muted-foreground mb-3 truncate">{user.email}</p>

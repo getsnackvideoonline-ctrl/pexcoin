@@ -23,7 +23,6 @@ export const RegisterBody = zod.object({
   password: zod.string(),
   name: zod.string(),
   phone: zod.string().nullish(),
-  inviteCode: zod.string().min(6),
 });
 
 /**
@@ -63,9 +62,6 @@ export const GetMeResponse = zod.object({
   phone: zod.string().nullish(),
   role: zod.string(),
   createdAt: zod.string(),
-  inviteCode: zod.string(),
-  referredBy: zod.number().nullish(),
-  commissionEarned: zod.number(),
 });
 
 /**
@@ -153,9 +149,6 @@ export const AdminGetUsersResponseItem = zod.object({
   usdtBalance: zod.number(),
   btcBalance: zod.number(),
   ethBalance: zod.number(),
-  inviteCode: zod.string(),
-  referredBy: zod.number().nullish(),
-  commissionEarned: zod.number(),
   createdAt: zod.string(),
 });
 export const AdminGetUsersResponse = zod.array(AdminGetUsersResponseItem);
@@ -177,9 +170,6 @@ export const AdminGetUserResponse = zod.object({
   usdtBalance: zod.number(),
   btcBalance: zod.number(),
   ethBalance: zod.number(),
-  inviteCode: zod.string(),
-  referredBy: zod.number().nullish(),
-  commissionEarned: zod.number(),
   createdAt: zod.string(),
 });
 
@@ -208,9 +198,6 @@ export const AdminUpdateUserResponse = zod.object({
   usdtBalance: zod.number(),
   btcBalance: zod.number(),
   ethBalance: zod.number(),
-  inviteCode: zod.string(),
-  referredBy: zod.number().nullish(),
-  commissionEarned: zod.number(),
   createdAt: zod.string(),
 });
 
@@ -285,80 +272,98 @@ export const AdminGetStatsResponse = zod.object({
 });
 
 /**
- * @summary Place a trade order
+ * @summary List all conversations
  */
-export const PlaceOrderBody = zod.object({
-  symbol: zod.string(),
-  side: zod.enum(["buy", "sell"]),
-  type: zod.enum(["market", "limit"]),
-  amount: zod.number().positive(),
-  price: zod.number().positive().optional(),
-  total: zod.number().positive().optional(),
-});
-
-export const OrderItem = zod.object({
+export const ListOpenaiConversationsResponseItem = zod.object({
   id: zod.number(),
-  symbol: zod.string(),
-  side: zod.string(),
-  type: zod.string(),
-  amount: zod.number(),
-  price: zod.number().nullish(),
-  status: zod.string(),
-  filledAmount: zod.number(),
-  avgPrice: zod.number().nullish(),
-  total: zod.number().nullish(),
-  createdAt: zod.string(),
+  title: zod.string(),
+  createdAt: zod.coerce.date(),
 });
-
-export const PlaceOrderResponse = OrderItem;
-export const GetMyOrdersResponse = zod.array(OrderItem);
-export const CancelOrderParams = zod.object({ id: zod.coerce.number() });
+export const ListOpenaiConversationsResponse = zod.array(
+  ListOpenaiConversationsResponseItem,
+);
 
 /**
- * @summary Get coin balances from trading
+ * @summary Create a new conversation
  */
-export const CoinBalanceItem = zod.object({
-  symbol: zod.string(),
-  amount: zod.number(),
+export const CreateOpenaiConversationBody = zod.object({
+  title: zod.string(),
 });
-export const GetCoinBalancesResponse = zod.array(CoinBalanceItem);
 
 /**
- * @summary Market data
+ * @summary Get conversation with messages
  */
-export const CandleItem = zod.object({
-  time: zod.number(),
-  open: zod.number(),
-  high: zod.number(),
-  low: zod.number(),
-  close: zod.number(),
-  volume: zod.number(),
-});
-export const GetCandlesResponse = zod.array(CandleItem);
-
-export const OrderBookLevel = zod.tuple([zod.number(), zod.number()]);
-export const GetOrderBookResponse = zod.object({
-  bids: zod.array(OrderBookLevel),
-  asks: zod.array(OrderBookLevel),
-  lastPrice: zod.number(),
+export const GetOpenaiConversationParams = zod.object({
+  id: zod.coerce.number(),
 });
 
-export const RecentTradeItem = zod.object({
+export const GetOpenaiConversationResponse = zod.object({
   id: zod.number(),
-  price: zod.number(),
-  amount: zod.number(),
-  side: zod.enum(["buy", "sell"]),
-  time: zod.number(),
+  title: zod.string(),
+  createdAt: zod.coerce.date(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      conversationId: zod.number(),
+      role: zod.string(),
+      content: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
 });
-export const GetRecentTradesResponse = zod.array(RecentTradeItem);
 
-export const MarketStatsResponse = zod.object({
-  symbol: zod.string(),
-  price: zod.number(),
-  change: zod.number(),
-  changePercent: zod.number(),
-  high24h: zod.number(),
-  low24h: zod.number(),
-  volume24h: zod.number(),
-  quoteVolume24h: zod.number(),
+/**
+ * @summary Delete a conversation
+ */
+export const DeleteOpenaiConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List messages in a conversation
+ */
+export const ListOpenaiMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListOpenaiMessagesResponseItem = zod.object({
+  id: zod.number(),
+  conversationId: zod.number(),
+  role: zod.string(),
+  content: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+export const ListOpenaiMessagesResponse = zod.array(
+  ListOpenaiMessagesResponseItem,
+);
+
+/**
+ * @summary Send a text message and receive a streaming text response
+ */
+export const SendOpenaiMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendOpenaiMessageBody = zod.object({
+  content: zod.string(),
+});
+
+/**
+ * @summary Create a Stripe checkout session for buying crypto
+ */
+export const CreateStripeCheckoutBody = zod.object({
+  priceId: zod.string(),
+  successUrl: zod.string().optional(),
+  cancelUrl: zod.string().optional(),
+});
+
+export const CreateStripeCheckoutResponse = zod.object({
+  url: zod.string(),
+});
+
+/**
+ * @summary List available crypto purchase packages
+ */
+export const ListStripeProductsResponse = zod.object({
+  data: zod.array(zod.object({}).passthrough()),
 });
