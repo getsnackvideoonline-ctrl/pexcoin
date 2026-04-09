@@ -353,17 +353,18 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="rounded-md border border-border/40 overflow-x-auto">
-                    <Table className="min-w-[800px]">
+                    <Table className="min-w-[1100px]">
                       <TableHeader className="bg-black/40">
                         <TableRow className="hover:bg-transparent">
                           <TableHead>ID</TableHead>
                           <TableHead>Email</TableHead>
-                          <TableHead>Name</TableHead>
                           <TableHead>USDT</TableHead>
                           <TableHead>BTC</TableHead>
                           <TableHead>ETH</TableHead>
+                          <TableHead>Invite Code</TableHead>
+                          <TableHead>Referred By</TableHead>
+                          <TableHead>Commission</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Joined</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -371,18 +372,23 @@ export default function AdminDashboard() {
                         {users?.map((user) => (
                           <TableRow key={user.id} className="border-border/40">
                             <TableCell className="font-mono text-xs">{user.id}</TableCell>
-                            <TableCell className="text-xs font-medium">{user.email}</TableCell>
-                            <TableCell className="text-xs">{user.name}</TableCell>
+                            <TableCell className="text-xs font-medium max-w-[140px] truncate">{user.email}</TableCell>
                             <TableCell className="font-mono text-xs">{user.usdtBalance.toFixed(2)}</TableCell>
                             <TableCell className="font-mono text-xs">{user.btcBalance.toFixed(6)}</TableCell>
                             <TableCell className="font-mono text-xs">{user.ethBalance.toFixed(6)}</TableCell>
                             <TableCell>
+                              <span className="font-mono text-xs text-primary tracking-widest">{user.inviteCode}</span>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {user.referredBy ? `#${user.referredBy}` : <span className="text-muted-foreground/40">—</span>}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-positive">
+                              {(user.commissionEarned ?? 0).toFixed(4)}
+                            </TableCell>
+                            <TableCell>
                               <Badge variant={user.status === "active" ? "default" : "secondary"}>
                                 {user.status}
                               </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {new Date(user.createdAt).toLocaleDateString()}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button 

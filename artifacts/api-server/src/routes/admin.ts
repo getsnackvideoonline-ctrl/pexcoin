@@ -24,6 +24,7 @@ const router = Router();
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin123";
+const COMMISSION_RATE = 0.05; // 5% commission to referrer
 
 function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "pexcoin_salt").digest("hex");
@@ -53,7 +54,6 @@ function checkAdminAuth(req: any, res: any): boolean {
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
     if (verifyAdminToken(token)) return true;
-    // Also accept user with admin role
     if (isAdmin(req)) return true;
   }
   res.status(401).json({ error: "Unauthorized" });
@@ -69,7 +69,6 @@ router.post("/admin/login", async (req, res): Promise<void> => {
 
   const { username, password } = parsed.data;
 
-  // Check hardcoded admin
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
     const token = generateAdminToken();
     const response = AdminLoginResponse.parse({ token, role: "admin" });
@@ -77,10 +76,7 @@ router.post("/admin/login", async (req, res): Promise<void> => {
     return;
   }
 
-  // Check DB admin users
-  const [user] = await db.select().from(usersTable)
-    .where(eq(usersTable.email, username));
-
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, username));
   if (user && user.role === "admin" && user.password === hashPassword(password)) {
     const token = generateAdminToken();
     const response = AdminLoginResponse.parse({ token, role: "admin" });
@@ -102,13 +98,15 @@ function formatUser(user: typeof usersTable.$inferSelect) {
     usdtBalance: parseFloat(user.usdtBalance),
     btcBalance: parseFloat(user.btcBalance),
     ethBalance: parseFloat(user.ethBalance),
+    inviteCode: user.inviteCode,
+    referredBy: user.referredBy,
+    commissionEarned: parseFloat(user.commissionEarned),
     createdAt: user.createdAt.toISOString(),
   };
 }
 
 router.get("/admin/users", async (req, res): Promise<void> => {
   if (!checkAdminAuth(req, res)) return;
-
   const users = await db.select().from(usersTable).orderBy(usersTable.createdAt);
   const response = AdminGetUsersResponse.parse(users.map(formatUser));
   res.json(response);
@@ -185,10 +183,7 @@ router.get("/admin/transactions", async (req, res): Promise<void> => {
   if (!checkAdminAuth(req, res)) return;
 
   const transactions = await db
-    .select({
-      transaction: transactionsTable,
-      userEmail: usersTable.email,
-    })
+    .select({ transaction: transactionsTable, userEmail: usersTable.email })
     .from(transactionsTable)
     .leftJoin(usersTable, eq(transactionsTable.userId, usersTable.id))
     .orderBy(transactionsTable.createdAt);
@@ -204,7 +199,9 @@ router.get("/admin/transactions", async (req, res): Promise<void> => {
 router.post("/admin/transactions/:id/approve", async (req, res): Promise<void> => {
   if (!checkAdminAuth(req, res)) return;
 
-  const params = AdminApproveTransactionParams.safeParse({ id: parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
+  const params = AdminApproveTransactionParams.safeParse({
+    id: parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id)
+  });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
@@ -212,7 +209,7 @@ router.post("/admin/transactions/:id/approve", async (req, res): Promise<void> =
 
   const [transaction] = await db
     .update(transactionsTable)
-    .set({ status: "approved" })
+    .set({ status: "completed" })
     .where(eq(transactionsTable.id, params.data.id))
     .returning();
 
@@ -221,18 +218,36 @@ router.post("/admin/transactions/:id/approve", async (req, res): Promise<void> =
     return;
   }
 
-  // If deposit, credit user balance
+  // Credit user balance on deposit
   if (transaction.type === "deposit") {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, transaction.userId));
     if (user) {
       const amount = parseFloat(transaction.amount);
       const currency = transaction.currency.toUpperCase();
-      const updates: Record<string, string> = {};
-      if (currency === "USDT") updates.usdtBalance = (parseFloat(user.usdtBalance) + amount).toString();
-      else if (currency === "BTC") updates.btcBalance = (parseFloat(user.btcBalance) + amount).toString();
-      else if (currency === "ETH") updates.ethBalance = (parseFloat(user.ethBalance) + amount).toString();
-      if (Object.keys(updates).length > 0) {
-        await db.update(usersTable).set(updates).where(eq(usersTable.id, user.id));
+      const userUpdates: Record<string, string> = {};
+      if (currency === "USDT") userUpdates.usdtBalance = (parseFloat(user.usdtBalance) + amount).toString();
+      else if (currency === "BTC") userUpdates.btcBalance = (parseFloat(user.btcBalance) + amount).toString();
+      else if (currency === "ETH") userUpdates.ethBalance = (parseFloat(user.ethBalance) + amount).toString();
+
+      if (Object.keys(userUpdates).length > 0) {
+        await db.update(usersTable).set(userUpdates).where(eq(usersTable.id, user.id));
+      }
+
+      // Pay 5% commission to referrer if they have one
+      if (user.referredBy) {
+        const commission = amount * COMMISSION_RATE;
+        const [referrer] = await db.select().from(usersTable).where(eq(usersTable.id, user.referredBy));
+        if (referrer) {
+          const referrerUpdates: Record<string, string> = {
+            commissionEarned: (parseFloat(referrer.commissionEarned) + commission).toString(),
+          };
+          // Add commission to referrer's same currency balance
+          if (currency === "USDT") referrerUpdates.usdtBalance = (parseFloat(referrer.usdtBalance) + commission).toString();
+          else if (currency === "BTC") referrerUpdates.btcBalance = (parseFloat(referrer.btcBalance) + commission).toString();
+          else if (currency === "ETH") referrerUpdates.ethBalance = (parseFloat(referrer.ethBalance) + commission).toString();
+
+          await db.update(usersTable).set(referrerUpdates).where(eq(usersTable.id, referrer.id));
+        }
       }
     }
   }
@@ -252,7 +267,9 @@ router.post("/admin/transactions/:id/approve", async (req, res): Promise<void> =
 router.post("/admin/transactions/:id/reject", async (req, res): Promise<void> => {
   if (!checkAdminAuth(req, res)) return;
 
-  const params = AdminRejectTransactionParams.safeParse({ id: parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id) });
+  const params = AdminRejectTransactionParams.safeParse({
+    id: parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id)
+  });
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;

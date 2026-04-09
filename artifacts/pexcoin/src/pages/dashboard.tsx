@@ -1,4 +1,5 @@
-import { useGetMyBalance, useGetMyTransactions } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useGetMyBalance, useGetMyTransactions, useGetMe } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,90 @@ import { Link } from "wouter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Copy, Check, Gift, TrendingUp, Users } from "lucide-react";
+
+function InviteCard({ inviteCode, commissionEarned }: { inviteCode: string; commissionEarned: number }) {
+  const [copied, setCopied] = useState(false);
+  const baseUrl = window.location.origin;
+  const inviteLink = `${baseUrl}/register?ref=${inviteCode}`;
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyCode = async () => {
+    await navigator.clipboard.writeText(inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+          <Gift className="h-4 w-4 text-primary" />
+          Referral Program
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+              <Users className="h-3 w-3" /> Your Invite Code
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-lg tracking-widest text-primary">{inviteCode}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 shrink-0"
+                onClick={handleCopyCode}
+                title="Copy code"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-positive" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+              <TrendingUp className="h-3 w-3" /> Commission Earned
+            </p>
+            <span className="font-mono font-bold text-lg text-positive">
+              ${commissionEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Your invite link</p>
+          <div className="flex items-center gap-2 p-2 bg-black/30 rounded border border-border/50">
+            <span className="font-mono text-xs text-muted-foreground truncate flex-1 select-all">
+              {inviteLink}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 h-7 text-xs"
+              onClick={handleCopy}
+            >
+              {copied ? <><Check className="h-3 w-3 mr-1 text-positive" />Copied!</> : <><Copy className="h-3 w-3 mr-1" />Copy</>}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Earn <span className="text-primary font-semibold">5% commission</span> on every deposit your referrals make.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Dashboard() {
   const { data: balance, isLoading: loadingBalance } = useGetMyBalance();
   const { data: transactions, isLoading: loadingTransactions } = useGetMyTransactions();
+  const { data: user } = useGetMe({ query: { retry: false } });
 
   return (
     <Layout>
@@ -30,7 +111,7 @@ export default function Dashboard() {
         </div>
 
         {/* Balances */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">USDT Balance</CardTitle>
@@ -39,7 +120,10 @@ export default function Dashboard() {
               {loadingBalance ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <div className="text-2xl font-bold font-mono">{balance?.usdt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-sm font-normal text-muted-foreground">USDT</span></div>
+                <div className="text-2xl font-bold font-mono">
+                  {parseFloat(String(balance?.usdt ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">USDT</span>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -51,7 +135,10 @@ export default function Dashboard() {
               {loadingBalance ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <div className="text-2xl font-bold font-mono">{balance?.btc.toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 })} <span className="text-sm font-normal text-muted-foreground">BTC</span></div>
+                <div className="text-2xl font-bold font-mono">
+                  {parseFloat(String(balance?.btc ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 })}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">BTC</span>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -63,11 +150,22 @@ export default function Dashboard() {
               {loadingBalance ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
-                <div className="text-2xl font-bold font-mono">{balance?.eth.toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 })} <span className="text-sm font-normal text-muted-foreground">ETH</span></div>
+                <div className="text-2xl font-bold font-mono">
+                  {parseFloat(String(balance?.eth ?? 0)).toLocaleString(undefined, { minimumFractionDigits: 8, maximumFractionDigits: 8 })}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">ETH</span>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Invite / Referral Card */}
+        {user?.inviteCode && (
+          <InviteCard
+            inviteCode={user.inviteCode}
+            commissionEarned={user.commissionEarned ?? 0}
+          />
+        )}
 
         {/* Transaction History */}
         <Card className="bg-card">
@@ -121,7 +219,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No transactions found.
+                No transactions yet.{" "}
+                <Link href="/deposit" className="text-primary hover:underline">Make your first deposit</Link>
               </div>
             )}
           </CardContent>
