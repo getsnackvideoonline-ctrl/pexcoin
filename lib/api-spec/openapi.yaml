@@ -142,6 +142,33 @@ paths:
                 items:
                   $ref: "#/components/schemas/CryptoPrice"
 
+  /crypto/chart/{coinId}:
+    get:
+      operationId: getCoinChart
+      tags: [crypto]
+      summary: Get historical chart data for a coin from CoinGecko
+      parameters:
+        - name: coinId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "1"
+      responses:
+        "200":
+          description: Chart data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CoinChartPoint"
+
   /crypto/ticker:
     get:
       operationId: getMarketTicker
@@ -623,11 +650,35 @@ components:
           type: number
         iconUrl:
           type: ["string", "null"]
+        marketCap:
+          type: ["number", "null"]
+        volume:
+          type: ["number", "null"]
+        high24h:
+          type: ["number", "null"]
+        low24h:
+          type: ["number", "null"]
+        sparkline:
+          type: array
+          items:
+            type: number
+          nullable: true
       required:
         - symbol
         - name
         - price
         - change
+
+    CoinChartPoint:
+      type: object
+      properties:
+        time:
+          type: number
+        price:
+          type: number
+      required:
+        - time
+        - price
 
     TickerItem:
       type: object

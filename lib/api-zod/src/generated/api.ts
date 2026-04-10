@@ -73,8 +73,32 @@ export const GetCryptoPricesResponseItem = zod.object({
   price: zod.number(),
   change: zod.number(),
   iconUrl: zod.string().nullish(),
+  marketCap: zod.number().nullish(),
+  volume: zod.number().nullish(),
+  high24h: zod.number().nullish(),
+  low24h: zod.number().nullish(),
+  sparkline: zod.array(zod.number()).nullish(),
 });
 export const GetCryptoPricesResponse = zod.array(GetCryptoPricesResponseItem);
+
+/**
+ * @summary Get historical chart data for a coin from CoinGecko
+ */
+export const GetCoinChartParams = zod.object({
+  coinId: zod.coerce.string(),
+});
+
+export const getCoinChartQueryDaysDefault = `1`;
+
+export const GetCoinChartQueryParams = zod.object({
+  days: zod.coerce.string().default(getCoinChartQueryDaysDefault),
+});
+
+export const GetCoinChartResponseItem = zod.object({
+  time: zod.number(),
+  price: zod.number(),
+});
+export const GetCoinChartResponse = zod.array(GetCoinChartResponseItem);
 
 /**
  * @summary Get top market ticker data (BTC, ETH, BCH)

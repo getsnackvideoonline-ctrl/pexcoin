@@ -25,11 +25,13 @@ import type {
   AdminUser,
   AuthResponse,
   CheckoutResponse,
+  CoinChartPoint,
   CreateCheckoutBody,
   CreateOpenaiConversationBody,
   CreateTransactionBody,
   CryptoPrice,
   ErrorResponse,
+  GetCoinChartParams,
   HealthStatus,
   LoginBody,
   MessageResponse,
@@ -514,6 +516,115 @@ export function useGetCryptoPrices<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetCryptoPricesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get historical chart data for a coin from CoinGecko
+ */
+export const getGetCoinChartUrl = (
+  coinId: string,
+  params?: GetCoinChartParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/crypto/chart/${coinId}?${stringifiedParams}`
+    : `/api/crypto/chart/${coinId}`;
+};
+
+export const getCoinChart = async (
+  coinId: string,
+  params?: GetCoinChartParams,
+  options?: RequestInit,
+): Promise<CoinChartPoint[]> => {
+  return customFetch<CoinChartPoint[]>(getGetCoinChartUrl(coinId, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCoinChartQueryKey = (
+  coinId: string,
+  params?: GetCoinChartParams,
+) => {
+  return [`/api/crypto/chart/${coinId}`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCoinChartQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCoinChart>>,
+  TError = ErrorType<unknown>,
+>(
+  coinId: string,
+  params?: GetCoinChartParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCoinChart>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCoinChartQueryKey(coinId, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCoinChart>>> = ({
+    signal,
+  }) => getCoinChart(coinId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!coinId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCoinChart>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCoinChartQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCoinChart>>
+>;
+export type GetCoinChartQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get historical chart data for a coin from CoinGecko
+ */
+
+export function useGetCoinChart<
+  TData = Awaited<ReturnType<typeof getCoinChart>>,
+  TError = ErrorType<unknown>,
+>(
+  coinId: string,
+  params?: GetCoinChartParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCoinChart>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCoinChartQueryOptions(coinId, params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

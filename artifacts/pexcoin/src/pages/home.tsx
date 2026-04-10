@@ -149,58 +149,81 @@ export default function Home() {
           </div>
 
           <div className="rounded-xl border border-border/40 overflow-hidden">
-            <div className="grid grid-cols-4 md:grid-cols-6 text-xs font-medium text-muted-foreground px-4 py-3 bg-muted/30 border-b border-border/40">
-              <span className="col-span-2">#  Coin</span>
-              <span className="text-right">Price</span>
-              <span className="text-right">24h Change</span>
-              <span className="text-right hidden md:block">High</span>
-              <span className="text-right hidden md:block">Action</span>
+            <div className="grid grid-cols-12 text-xs font-medium text-muted-foreground px-4 py-3 bg-muted/30 border-b border-border/40">
+              <span className="col-span-1">#</span>
+              <span className="col-span-3">Coin</span>
+              <span className="col-span-2 text-right">Price</span>
+              <span className="col-span-2 text-right">24h %</span>
+              <span className="col-span-2 text-right hidden md:block">Market Cap</span>
+              <span className="col-span-1 text-right hidden md:block">Volume</span>
+              <span className="col-span-1 text-right"></span>
             </div>
 
             {loadingPrices ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-4 md:grid-cols-6 px-4 py-3.5 border-b border-border/20 animate-pulse">
-                  <div className="col-span-2 flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-muted" />
-                    <div className="h-4 w-20 bg-muted rounded" />
+                <div key={i} className="grid grid-cols-12 px-4 py-3.5 border-b border-border/20 animate-pulse gap-2 items-center">
+                  <div className="col-span-1 h-3 w-4 bg-muted rounded" />
+                  <div className="col-span-3 flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
+                    <div className="h-4 w-16 bg-muted rounded" />
                   </div>
-                  <div className="h-4 w-20 bg-muted rounded ml-auto" />
-                  <div className="h-4 w-14 bg-muted rounded ml-auto" />
+                  <div className="col-span-2 h-4 w-20 bg-muted rounded ml-auto" />
+                  <div className="col-span-2 h-4 w-14 bg-muted rounded ml-auto" />
+                  <div className="col-span-2 h-4 w-16 bg-muted rounded ml-auto hidden md:block" />
+                  <div className="col-span-1 h-4 w-12 bg-muted rounded ml-auto hidden md:block" />
                 </div>
               ))
             ) : (
               (filtered ?? []).slice(0, 20).map((p, idx) => {
                 const isUp = p.change >= 0;
                 const symbol = p.symbol.replace("/USDT", "");
+                const mcap = p.marketCap;
+                const vol = p.volume;
+                const fmtBig = (n: number | null | undefined) => {
+                  if (!n) return "—";
+                  if (n >= 1e12) return `$${(n/1e12).toFixed(2)}T`;
+                  if (n >= 1e9) return `$${(n/1e9).toFixed(2)}B`;
+                  if (n >= 1e6) return `$${(n/1e6).toFixed(2)}M`;
+                  return `$${n.toLocaleString()}`;
+                };
+                const fmtPrice = (price: number) => {
+                  if (price >= 1) return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                  if (price >= 0.001) return price.toFixed(4);
+                  return price.toFixed(8);
+                };
                 return (
                   <div
                     key={p.symbol}
-                    className="grid grid-cols-4 md:grid-cols-6 px-4 py-3.5 border-b border-border/20 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer group"
+                    className="grid grid-cols-12 px-4 py-3.5 border-b border-border/20 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer group items-center"
                     onClick={() => user ? navigate(`/trade/${encodeURIComponent(p.symbol)}`) : navigate("/login")}
                   >
-                    <div className="col-span-2 flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground w-4 shrink-0">{idx + 1}</span>
-                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <span className="text-xs font-bold text-primary">{symbol.slice(0, 2)}</span>
-                      </div>
+                    <span className="col-span-1 text-xs text-muted-foreground">{idx + 1}</span>
+                    <div className="col-span-3 flex items-center gap-2">
+                      {p.iconUrl
+                        ? <img src={p.iconUrl} alt={p.name} className="w-7 h-7 rounded-full shrink-0" />
+                        : <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0"><span className="text-xs font-bold text-primary">{symbol.slice(0, 2)}</span></div>
+                      }
                       <div>
                         <p className="font-semibold text-sm">{symbol}</p>
-                        <p className="text-xs text-muted-foreground hidden sm:block">{p.symbol}</p>
+                        <p className="text-xs text-muted-foreground hidden sm:block">{p.name}</p>
                       </div>
                     </div>
-                    <div className="text-right self-center">
-                      <p className="font-mono font-semibold text-sm">${p.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                    <div className="col-span-2 text-right self-center">
+                      <p className="font-mono font-semibold text-sm">${fmtPrice(p.price)}</p>
                     </div>
-                    <div className="text-right self-center">
+                    <div className="col-span-2 text-right self-center">
                       <span className={`flex items-center justify-end gap-1 text-sm font-medium ${isUp ? "text-green-500" : "text-red-500"}`}>
                         {isUp ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
                         {isUp ? "+" : ""}{p.change.toFixed(2)}%
                       </span>
                     </div>
-                    <div className="text-right self-center hidden md:block">
-                      <p className="text-sm text-muted-foreground">${(p.price * 1.03).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                    <div className="col-span-2 text-right self-center hidden md:block">
+                      <p className="text-sm text-muted-foreground">{fmtBig(mcap)}</p>
                     </div>
-                    <div className="text-right self-center hidden md:flex justify-end">
+                    <div className="col-span-1 text-right self-center hidden md:block">
+                      <p className="text-xs text-muted-foreground">{fmtBig(vol)}</p>
+                    </div>
+                    <div className="col-span-1 text-right self-center hidden md:flex justify-end">
                       <Button
                         size="sm"
                         variant="outline"

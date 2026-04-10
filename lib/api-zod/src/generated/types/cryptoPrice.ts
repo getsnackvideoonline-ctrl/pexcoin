@@ -13,4 +13,13 @@ export interface CryptoPrice {
   change: number;
   /** @nullable */
   iconUrl?: string | null;
+  /** @nullable */
+  marketCap?: number | null;
+  /** @nullable */
+  volume?: number | null;
+  /** @nullable */
+  high24h?: number | null;
+  /** @nullable */
+  low24h?: number | null;
+  sparkline?: number[] | null;
 }

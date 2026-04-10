@@ -58,6 +58,20 @@ export interface CryptoPrice {
   change: number;
   /** @nullable */
   iconUrl?: string | null;
+  /** @nullable */
+  marketCap?: number | null;
+  /** @nullable */
+  volume?: number | null;
+  /** @nullable */
+  high24h?: number | null;
+  /** @nullable */
+  low24h?: number | null;
+  sparkline?: number[] | null;
+}
+
+export interface CoinChartPoint {
+  time: number;
+  price: number;
 }
 
 export interface TickerItem {
@@ -205,3 +219,7 @@ export type StripeProductsResponseDataItem = { [key: string]: unknown };
 export interface StripeProductsResponse {
   data: StripeProductsResponseDataItem[];
 }
+
+export type GetCoinChartParams = {
+  days?: string;
+};
