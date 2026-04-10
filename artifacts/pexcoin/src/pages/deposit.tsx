@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { useCreateTransaction } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,12 @@ import { Layout } from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
-import { Link } from "wouter";
+import { Link } from "react-router-dom";
 
 export default function Deposit() {
   const [currency, setCurrency] = useState("USDT");
   const [amount, setAmount] = useState("");
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   
   const createTx = useCreateTransaction();
@@ -36,7 +36,7 @@ export default function Deposit() {
     }, {
       onSuccess: () => {
         toast({ title: "Deposit request submitted" });
-        setLocation("/dashboard");
+        navigate("/dashboard");
       },
       onError: (error: any) => {
         toast({ 

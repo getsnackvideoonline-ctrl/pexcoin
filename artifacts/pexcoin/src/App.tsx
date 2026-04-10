@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,8 +14,10 @@ import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AiAssistant from "@/pages/ai-assistant";
 import Trade from "@/pages/trade";
+import CoinDetail from "@/pages/coin-detail";
 import Portfolio from "@/pages/portfolio";
 import BuyCrypto from "@/pages/buy-crypto";
+import Profile from "@/pages/profile";
 
 import { ProtectedRoute } from "@/components/protected-route";
 import { AdminProtectedRoute } from "@/components/admin-protected-route";
@@ -23,54 +25,36 @@ import "@/lib/fetch-interceptor";
 
 const queryClient = new QueryClient();
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
+const base = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
 
-      <Route path="/dashboard">
-        <ProtectedRoute><Dashboard /></ProtectedRoute>
-      </Route>
-      <Route path="/deposit">
-        <ProtectedRoute><Deposit /></ProtectedRoute>
-      </Route>
-      <Route path="/withdraw">
-        <ProtectedRoute><Withdraw /></ProtectedRoute>
-      </Route>
-      <Route path="/trade">
-        <ProtectedRoute><Trade /></ProtectedRoute>
-      </Route>
-      <Route path="/portfolio">
-        <ProtectedRoute><Portfolio /></ProtectedRoute>
-      </Route>
-      <Route path="/ai-assistant">
-        <ProtectedRoute><AiAssistant /></ProtectedRoute>
-      </Route>
-      <Route path="/buy-crypto" component={BuyCrypto} />
-
-      <Route path="/admin" component={AdminLogin} />
-      <Route path="/admin/dashboard">
-        <AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>
-      </Route>
-
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
+        <BrowserRouter basename={base}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/deposit" element={<ProtectedRoute><Deposit /></ProtectedRoute>} />
+            <Route path="/withdraw" element={<ProtectedRoute><Withdraw /></ProtectedRoute>} />
+            <Route path="/trade" element={<ProtectedRoute><Trade /></ProtectedRoute>} />
+            <Route path="/trade/:symbol" element={<ProtectedRoute><CoinDetail /></ProtectedRoute>} />
+            <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
+            <Route path="/ai-assistant" element={<ProtectedRoute><AiAssistant /></ProtectedRoute>} />
+            <Route path="/buy-crypto" element={<BuyCrypto />} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
-
-export default App;

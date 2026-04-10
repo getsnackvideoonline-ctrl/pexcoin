@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAdminToken } from "@/lib/auth-utils";
 
 function isAdminTokenValid(token: string | null): boolean {
   if (!token) return false;
   try {
-    // Token is plain base64-encoded JSON (not a JWT)
     const payload = JSON.parse(atob(token));
     if (payload.role !== "admin") return false;
-    if (payload.exp && payload.exp < Date.now()) return false; // exp is in ms
+    if (payload.exp && payload.exp < Date.now()) return false;
     return true;
   } catch {
     return false;
@@ -17,7 +16,7 @@ function isAdminTokenValid(token: string | null): boolean {
 }
 
 export function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const [valid, setValid] = useState(false);
 
@@ -26,10 +25,8 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
     const ok = isAdminTokenValid(token);
     setValid(ok);
     setChecking(false);
-    if (!ok) {
-      setLocation("/admin");
-    }
-  }, [setLocation]);
+    if (!ok) navigate("/admin", { replace: true });
+  }, [navigate]);
 
   if (checking) {
     return (

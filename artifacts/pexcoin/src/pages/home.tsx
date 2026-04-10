@@ -1,183 +1,248 @@
 import { useRef } from "react";
-import { useGetCryptoPrices, useGetMarketTicker } from "@workspace/api-client-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useGetCryptoPrices, useGetMarketTicker, useGetMe } from "@workspace/api-client-react";
 import { Layout } from "@/components/layout";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownRight, Wallet, ArrowRightLeft, Headset, Shield, Zap, Globe } from "lucide-react";
-import { Link } from "wouter";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  ArrowUpRight, ArrowDownRight, Shield, Zap, Bot, TrendingUp,
+  Search, Globe, BarChart2, Star, ChevronRight
+} from "lucide-react";
+import { useState } from "react";
 
 export default function Home() {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const { data: user } = useGetMe({ query: { retry: false } });
+
   const { data: prices, isLoading: loadingPrices } = useGetCryptoPrices({
-    query: { refetchInterval: 5000 }
+    query: { refetchInterval: 5000 },
   });
-  
-  const { data: ticker, isLoading: loadingTicker } = useGetMarketTicker({
-    query: { refetchInterval: 5000 }
+  const { data: ticker } = useGetMarketTicker({
+    query: { refetchInterval: 5000 },
   });
+
+  const filtered = prices?.filter(
+    (p) =>
+      !search ||
+      p.symbol.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const marketCapCoins = [
+    { symbol: "BTC", name: "Bitcoin", desc: "The original cryptocurrency" },
+    { symbol: "ETH", name: "Ethereum", desc: "Smart contract platform" },
+    { symbol: "BNB", name: "BNB", desc: "Binance ecosystem token" },
+    { symbol: "SOL", name: "Solana", desc: "High-speed blockchain" },
+  ];
 
   return (
     <Layout>
       {/* Ticker Bar */}
       <div className="w-full bg-muted/30 border-b border-border/50 overflow-hidden py-2 flex items-center">
         <div className="flex items-center gap-8 px-4 animate-marquee whitespace-nowrap">
-          {loadingTicker ? (
-            <span className="text-muted-foreground text-xs">Loading market data...</span>
-          ) : (
-            <>
-              {[...(ticker ?? []), ...(ticker ?? [])].map((t, i) => (
-                <div key={`${t.pair}-${i}`} className="flex items-center gap-2 text-xs font-mono shrink-0">
-                  <span className="font-bold text-foreground">{t.pair}</span>
-                  <span className="text-muted-foreground">${t.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-                  <span className={t.change >= 0 ? "text-positive" : "text-negative"}>
-                    {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
-                  </span>
+          {[...(ticker ?? []), ...(ticker ?? [])].map((t, i) => (
+            <div key={`${t.pair}-${i}`} className="flex items-center gap-2 text-xs font-mono shrink-0">
+              <span className="font-bold text-foreground">{t.pair}</span>
+              <span className="text-muted-foreground">${t.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+              <span className={t.change >= 0 ? "text-green-500" : "text-red-500"}>
+                {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Hero Section */}
+      <section className="relative py-20 px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/8 via-transparent to-transparent" />
+        <div className="max-w-screen-xl mx-auto relative z-10">
+          <div className="max-w-3xl mx-auto text-center space-y-6">
+            <Badge variant="outline" className="gap-1.5 px-3 py-1 text-xs border-primary/30 text-primary">
+              <Zap className="h-3 w-3" /> World's Most Trusted Crypto Exchange
+            </Badge>
+            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
+              Trade Crypto with{" "}
+              <span className="text-primary">Confidence</span>
+            </h1>
+            <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+              Buy, sell, and trade 24+ cryptocurrencies securely on PexCoin — AI-powered insights, institutional-grade security, and lightning-fast execution.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+              {user ? (
+                <>
+                  <Button size="lg" className="text-base font-bold gap-2" onClick={() => navigate("/trade")}>
+                    <BarChart2 className="h-5 w-5" /> Start Trading
+                  </Button>
+                  <Button size="lg" variant="outline" className="text-base gap-2" onClick={() => navigate("/dashboard")}>
+                    My Dashboard <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/register">
+                    <Button size="lg" className="text-base font-bold gap-2 w-full sm:w-auto">
+                      Get Started Free <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link to="/login">
+                    <Button size="lg" variant="outline" className="text-base w-full sm:w-auto">
+                      Login to Trade
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground pt-2">
+              <div className="flex items-center gap-1.5"><Shield className="h-4 w-4 text-green-500" /> SSL Secured</div>
+              <div className="flex items-center gap-1.5"><Globe className="h-4 w-4 text-blue-500" /> 24/7 Trading</div>
+              <div className="flex items-center gap-1.5"><Star className="h-4 w-4 text-yellow-500" /> 5% Referral Bonus</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="py-12 px-4 border-y border-border/40 bg-muted/20">
+        <div className="max-w-screen-xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { icon: <Zap className="h-6 w-6 text-yellow-500" />, title: "Lightning Fast", desc: "Execute trades in milliseconds with our high-performance matching engine." },
+              { icon: <Shield className="h-6 w-6 text-green-500" />, title: "Bank-Grade Security", desc: "Multi-layer security with 2FA, cold storage, and real-time fraud detection." },
+              { icon: <Bot className="h-6 w-6 text-primary" />, title: "AI Trading Assistant", desc: "Get personalized market analysis and trading signals powered by GPT." },
+            ].map((f) => (
+              <div key={f.title} className="flex gap-4 p-6 rounded-xl border border-border/40 bg-background hover:border-primary/30 transition-colors">
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-muted flex items-center justify-center">{f.icon}</div>
+                <div>
+                  <h3 className="font-semibold mb-1">{f.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
                 </div>
-              ))}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Hero */}
-      <div className="w-full bg-gradient-to-br from-background via-background to-sidebar py-16 px-4 border-b border-border/30">
-        <div className="max-w-screen-xl mx-auto flex flex-col items-center text-center gap-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
-            <Zap className="h-3 w-3" /> World's Most Trusted Crypto Exchange
-          </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
-            Trade Crypto with <span className="text-primary">Confidence</span>
-          </h1>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-xl">
-            Buy, sell, and trade 24+ cryptocurrencies securely on PexCoin — institutional-grade trading for everyone.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full sm:w-auto">
-            <Link href="/register">
-              <Button size="lg" className="font-bold w-full sm:w-auto px-8">Start Trading</Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline" className="font-bold w-full sm:w-auto px-8">Login</Button>
-            </Link>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Quick Actions */}
-      <div className="max-w-screen-xl mx-auto w-full px-4 py-8">
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Link href="/deposit">
-            <Card className="hover:border-primary/50 transition-all cursor-pointer bg-card/50 hover:bg-card group">
-              <CardContent className="flex flex-col items-center justify-center p-4 sm:p-6 gap-2">
-                <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-primary group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-xs sm:text-sm">Deposit</span>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/withdraw">
-            <Card className="hover:border-primary/50 transition-all cursor-pointer bg-card/50 hover:bg-card group">
-              <CardContent className="flex flex-col items-center justify-center p-4 sm:p-6 gap-2">
-                <ArrowRightLeft className="h-6 w-6 sm:h-8 sm:w-8 text-primary group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-xs sm:text-sm">Withdraw</span>
-              </CardContent>
-            </Card>
-          </Link>
-          <Card className="hover:border-primary/50 transition-all cursor-pointer bg-card/50 hover:bg-card group">
-            <CardContent className="flex flex-col items-center justify-center p-4 sm:p-6 gap-2">
-              <Headset className="h-6 w-6 sm:h-8 sm:w-8 text-primary group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-xs sm:text-sm">Support</span>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Market Table */}
-      <div className="max-w-screen-xl mx-auto w-full px-4 pb-12">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold">Market Overview</h2>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-positive animate-pulse"></span>
-            Live
-          </span>
-        </div>
-        
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          {/* Table Header */}
-          <div className="grid grid-cols-3 md:grid-cols-4 p-3 sm:p-4 text-xs font-medium text-muted-foreground border-b bg-muted/20">
-            <div>Pair</div>
-            <div className="text-right">Price</div>
-            <div className="text-right">24h Change</div>
-            <div className="hidden md:block text-right">Action</div>
+      {/* Market Overview */}
+      <section className="py-12 px-4">
+        <div className="max-w-screen-xl mx-auto">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <div>
+              <h2 className="text-2xl font-bold">Market Overview</h2>
+              <p className="text-muted-foreground text-sm">Live prices across all trading pairs</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search coins..."
+                  className="pl-9 w-48 h-9 text-sm"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                Live
+              </div>
+            </div>
           </div>
-          
-          <div className="divide-y divide-border/40">
+
+          <div className="rounded-xl border border-border/40 overflow-hidden">
+            <div className="grid grid-cols-4 md:grid-cols-6 text-xs font-medium text-muted-foreground px-4 py-3 bg-muted/30 border-b border-border/40">
+              <span className="col-span-2">#  Coin</span>
+              <span className="text-right">Price</span>
+              <span className="text-right">24h Change</span>
+              <span className="text-right hidden md:block">High</span>
+              <span className="text-right hidden md:block">Action</span>
+            </div>
+
             {loadingPrices ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-3 md:grid-cols-4 p-3 sm:p-4 items-center gap-2">
-                  <div className="h-4 w-20 bg-muted animate-pulse rounded"></div>
-                  <div className="h-4 w-16 bg-muted animate-pulse rounded ml-auto"></div>
-                  <div className="h-4 w-12 bg-muted animate-pulse rounded ml-auto"></div>
-                  <div className="hidden md:flex h-8 w-16 bg-muted animate-pulse rounded ml-auto"></div>
+                <div key={i} className="grid grid-cols-4 md:grid-cols-6 px-4 py-3.5 border-b border-border/20 animate-pulse">
+                  <div className="col-span-2 flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-muted" />
+                    <div className="h-4 w-20 bg-muted rounded" />
+                  </div>
+                  <div className="h-4 w-20 bg-muted rounded ml-auto" />
+                  <div className="h-4 w-14 bg-muted rounded ml-auto" />
                 </div>
               ))
             ) : (
-              prices?.map((coin) => (
-                <div
-                  key={coin.symbol}
-                  className="grid grid-cols-3 md:grid-cols-4 p-3 sm:p-4 items-center hover:bg-muted/10 transition-colors"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-secondary flex items-center justify-center font-bold text-xs shrink-0 text-primary">
-                      {coin.symbol.charAt(0)}
+              (filtered ?? []).slice(0, 20).map((p, idx) => {
+                const isUp = p.change >= 0;
+                const symbol = p.symbol.replace("/USDT", "");
+                return (
+                  <div
+                    key={p.symbol}
+                    className="grid grid-cols-4 md:grid-cols-6 px-4 py-3.5 border-b border-border/20 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer group"
+                    onClick={() => user ? navigate(`/trade/${encodeURIComponent(p.symbol)}`) : navigate("/login")}
+                  >
+                    <div className="col-span-2 flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground w-4 shrink-0">{idx + 1}</span>
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold text-primary">{symbol.slice(0, 2)}</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{symbol}</p>
+                        <p className="text-xs text-muted-foreground hidden sm:block">{p.symbol}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="font-bold font-mono text-xs sm:text-sm truncate">{coin.symbol}</div>
-                      <div className="text-xs text-muted-foreground truncate hidden sm:block">{coin.name}</div>
+                    <div className="text-right self-center">
+                      <p className="font-mono font-semibold text-sm">${p.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                    </div>
+                    <div className="text-right self-center">
+                      <span className={`flex items-center justify-end gap-1 text-sm font-medium ${isUp ? "text-green-500" : "text-red-500"}`}>
+                        {isUp ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                        {isUp ? "+" : ""}{p.change.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="text-right self-center hidden md:block">
+                      <p className="text-sm text-muted-foreground">${(p.price * 1.03).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className="text-right self-center hidden md:flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity gap-1"
+                        onClick={(e) => { e.stopPropagation(); user ? navigate(`/trade/${encodeURIComponent(p.symbol)}`) : navigate("/login"); }}
+                      >
+                        Trade <ChevronRight className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="text-right font-mono text-xs sm:text-sm">
-                    ${coin.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
-                  </div>
-                  <div className={`text-right flex items-center justify-end gap-0.5 font-mono text-xs sm:text-sm ${coin.change >= 0 ? "text-positive" : "text-negative"}`}>
-                    {coin.change >= 0 ? <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" /> : <ArrowDownRight className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />}
-                    <span>{Math.abs(coin.change).toFixed(2)}%</span>
-                  </div>
-                  <div className="hidden md:flex justify-end">
-                    <Link href="/login">
-                      <Button variant="secondary" size="sm" className="font-bold text-xs h-8">Trade</Button>
-                    </Link>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Features */}
-      <div className="border-t border-border/30 bg-muted/10 py-12 px-4">
-        <div className="max-w-screen-xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Shield className="h-6 w-6 text-primary" />
+          {!user && (
+            <div className="mt-6 text-center">
+              <p className="text-muted-foreground text-sm mb-3">Sign up to start trading these assets</p>
+              <Link to="/register">
+                <Button className="gap-2 font-bold">
+                  Create Free Account <ChevronRight className="h-4 w-4" />
+                </Button>
+              </Link>
             </div>
-            <h3 className="font-bold">Secure & Trusted</h3>
-            <p className="text-sm text-muted-foreground">Industry-leading security protocols protect your assets 24/7.</p>
-          </div>
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Zap className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="font-bold">Lightning Fast</h3>
-            <p className="text-sm text-muted-foreground">Execute trades in milliseconds with our high-performance engine.</p>
-          </div>
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Globe className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="font-bold">Global Markets</h3>
-            <p className="text-sm text-muted-foreground">Access 24+ crypto pairs with real-time prices from global markets.</p>
-          </div>
+          )}
         </div>
-      </div>
+      </section>
+
+      {/* Footer CTA */}
+      {!user && (
+        <section className="py-16 px-4 bg-gradient-to-br from-primary/10 to-primary/5 border-t border-border/40">
+          <div className="max-w-2xl mx-auto text-center space-y-5">
+            <h2 className="text-3xl font-bold">Ready to start trading?</h2>
+            <p className="text-muted-foreground">Get an invitation from an existing member and join thousands of traders on PexCoin.</p>
+            <Link to="/register">
+              <Button size="lg" className="font-bold gap-2">
+                Join PexCoin <TrendingUp className="h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </section>
+      )}
     </Layout>
   );
 }

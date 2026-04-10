@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { removeAdminToken } from "@/lib/auth-utils";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, XCircle, LogOut, Edit2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -140,14 +140,14 @@ export default function AdminDashboard() {
   const rejectTx = useAdminRejectTransaction();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
 
   const [editUserId, setEditUserId] = useState<number | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
   const handleLogout = () => {
     removeAdminToken();
-    setLocation("/admin");
+    navigate("/admin");
   };
 
   const handleApprove = (id: number) => {

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useGetCryptoPrices } from "@workspace/api-client-react";
 import { CreditCard, Bitcoin, Zap, Shield, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { getToken } from "@/lib/auth-utils";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -61,7 +61,7 @@ const CRYPTO_PACKAGES = [
 ];
 
 export default function BuyCrypto() {
-  const [_, setLocation] = useLocation();
+  const navigate = useNavigate();
   const { data: prices } = useGetCryptoPrices();
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
@@ -95,7 +95,7 @@ export default function BuyCrypto() {
   async function handleCheckout(priceId: string) {
     const token = getToken();
     if (!token) {
-      setLocation("/login");
+      navigate("/login");
       return;
     }
 
@@ -277,7 +277,7 @@ export default function BuyCrypto() {
                       variant={pkg.popular ? "default" : "outline"}
                       onClick={() => {
                         if (!getToken()) {
-                          setLocation("/login");
+                          navigate("/login");
                         } else {
                           alert("Please connect your Stripe account to enable card payments. Contact support for alternative deposit methods.");
                         }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { useAdminLogin } from "@workspace/api-client-react";
 import { setAdminToken } from "@/lib/auth-utils";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ export default function AdminLogin() {
   const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [num1, setNum1] = useState(0);
   const [num2, setNum2] = useState(0);
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
   
   const login = useAdminLogin();

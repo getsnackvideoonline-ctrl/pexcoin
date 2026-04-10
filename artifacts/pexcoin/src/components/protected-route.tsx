@@ -1,17 +1,17 @@
 import { useGetMe } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading, error } = useGetMe({ query: { retry: false } });
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading && (error || !user)) {
-      setLocation("/login");
+      navigate("/login", { replace: true });
     }
-  }, [isLoading, error, user, setLocation]);
+  }, [isLoading, error, user, navigate]);
 
   if (isLoading) {
     return (
@@ -22,9 +22,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (error || !user) {
-    return null; // Will redirect in useEffect
-  }
+  if (error || !user) return null;
 
   return <>{children}</>;
 }
