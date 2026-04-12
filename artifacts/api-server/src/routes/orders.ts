@@ -46,7 +46,7 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const quoteCurrency = "USDT";
   const baseCurrency = symbol.replace(/USDT$/, "");
-  const currentPrice = getCurrentPrice(baseCurrency) ?? 1;
+  const currentPrice = await getCurrentPrice(baseCurrency);
 
   try {
     if (type === "market") {
@@ -259,7 +259,7 @@ router.delete("/orders/:id", async (req, res): Promise<void> => {
     if (!user) throw new Error("USER_NOT_FOUND");
 
     const baseCurrency = order.symbol.replace(/USDT$/, "");
-    const orderPrice = order.price ? parseFloat(order.price) : getCurrentPrice(baseCurrency) ?? 1;
+    const orderPrice = order.price ? parseFloat(order.price) : await getCurrentPrice(baseCurrency);
     const orderAmount = parseFloat(order.amount);
 
     if (order.side === "buy") {
@@ -288,6 +288,87 @@ router.delete("/orders/:id", async (req, res): Promise<void> => {
   if (!res.headersSent) {
     res.json({ success: true });
   }
+});
+
+router.get("/orders/pnl", async (req, res): Promise<void> => {
+  const auth = getAuthUser(req);
+  if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+  const [orders, balances] = await Promise.all([
+    db.select().from(ordersTable)
+      .where(and(eq(ordersTable.userId, auth.userId), eq(ordersTable.status, "filled")))
+      .orderBy(ordersTable.createdAt),
+    db.select().from(coinBalancesTable)
+      .where(eq(coinBalancesTable.userId, auth.userId)),
+  ]);
+
+  interface PnLData {
+    symbol: string;
+    currentAmount: number;
+    avgBuyPrice: number;
+    currentPrice: number;
+    investedValue: number;
+    currentValue: number;
+    unrealizedPnl: number;
+    unrealizedPnlPct: number;
+    realizedPnl: number;
+    totalBought: number;
+    totalBuyValue: number;
+  }
+
+  const coinMap: Record<string, PnLData> = {};
+
+  for (const order of orders) {
+    const sym = order.symbol.replace(/USDT$/, "").toUpperCase();
+    if (!coinMap[sym]) {
+      coinMap[sym] = {
+        symbol: sym, currentAmount: 0, avgBuyPrice: 0, currentPrice: 0,
+        investedValue: 0, currentValue: 0, unrealizedPnl: 0,
+        unrealizedPnlPct: 0, realizedPnl: 0, totalBought: 0, totalBuyValue: 0,
+      };
+    }
+
+    const filled = parseFloat(order.filledAmount);
+    if (isNaN(filled) || filled <= 0) continue;
+    const avgPrice = order.avgPrice ? parseFloat(order.avgPrice)
+      : order.price ? parseFloat(order.price) : 0;
+    if (isNaN(avgPrice)) continue;
+
+    if (order.side === "buy") {
+      coinMap[sym].totalBought += filled;
+      coinMap[sym].totalBuyValue += filled * avgPrice;
+    } else {
+      const avgCost = coinMap[sym].totalBought > 0
+        ? coinMap[sym].totalBuyValue / coinMap[sym].totalBought : 0;
+      coinMap[sym].realizedPnl += filled * avgPrice - filled * avgCost;
+      if (coinMap[sym].totalBought > 0) {
+        const sellRatio = Math.min(1, filled / coinMap[sym].totalBought);
+        coinMap[sym].totalBuyValue *= 1 - sellRatio;
+        coinMap[sym].totalBought = Math.max(0, coinMap[sym].totalBought - filled);
+      }
+    }
+  }
+
+  for (const bal of balances) {
+    const sym = bal.symbol.toUpperCase();
+    if (coinMap[sym]) coinMap[sym].currentAmount = parseFloat(bal.amount);
+  }
+
+  for (const [sym, data] of Object.entries(coinMap)) {
+    data.currentPrice = await getCurrentPrice(sym);
+    data.avgBuyPrice = data.totalBought > 0 ? data.totalBuyValue / data.totalBought : 0;
+    data.investedValue = data.currentAmount * data.avgBuyPrice;
+    data.currentValue = data.currentAmount * data.currentPrice;
+    data.unrealizedPnl = data.currentValue - data.investedValue;
+    data.unrealizedPnlPct = data.investedValue > 0
+      ? ((data.currentValue - data.investedValue) / data.investedValue) * 100 : 0;
+  }
+
+  const result = Object.values(coinMap)
+    .filter((d) => d.currentAmount > 0.0000001 || Math.abs(d.realizedPnl) > 0.01)
+    .map(({ totalBought: _tb, totalBuyValue: _tbv, ...rest }) => rest);
+
+  res.json(result);
 });
 
 router.get("/orders/balances", async (req, res): Promise<void> => {
