@@ -7,18 +7,20 @@ import { getCurrentPrice } from "./crypto";
 
 const router = Router();
 
-async function getCoinBalance(userId: number, symbol: string): Promise<number> {
-  const [row] = await db
+async function getCoinBalance(userId: number, symbol: string, tx?: typeof db): Promise<number> {
+  const client = tx ?? db;
+  const [row] = await client
     .select()
     .from(coinBalancesTable)
     .where(and(eq(coinBalancesTable.userId, userId), eq(coinBalancesTable.symbol, symbol)));
   return row ? parseFloat(row.amount) : 0;
 }
 
-async function upsertCoinBalance(userId: number, symbol: string, delta: number): Promise<void> {
-  const current = await getCoinBalance(userId, symbol);
+async function upsertCoinBalance(userId: number, symbol: string, delta: number, tx?: typeof db): Promise<void> {
+  const client = tx ?? db;
+  const current = await getCoinBalance(userId, symbol, tx);
   const newAmount = Math.max(0, current + delta);
-  await db
+  await client
     .insert(coinBalancesTable)
     .values({ userId, symbol, amount: newAmount.toString() })
     .onConflictDoUpdate({
@@ -42,97 +44,139 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const { symbol, side, type, amount, price: limitPrice, total: inputTotal } = parsed.data;
 
-  // Extract base and quote (e.g., BTCUSDT => BTC, USDT)
   const quoteCurrency = "USDT";
   const baseCurrency = symbol.replace(/USDT$/, "");
-
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId));
-  if (!user) {
-    res.status(404).json({ error: "User not found" });
-    return;
-  }
-
-  const usdtBalance = parseFloat(user.usdtBalance);
   const currentPrice = getCurrentPrice(baseCurrency) ?? 1;
 
-  if (type === "market") {
-    if (side === "buy") {
-      // For market buy: spend USDT, receive base coin
-      const spendUsdt = inputTotal ?? (amount * currentPrice);
-      const receiveAmount = spendUsdt / currentPrice;
+  try {
+    if (type === "market") {
+      if (side === "buy") {
+        const spendUsdt = inputTotal ?? (amount * currentPrice);
+        const receiveAmount = spendUsdt / currentPrice;
 
-      if (usdtBalance < spendUsdt) {
-        res.status(400).json({ error: "Insufficient USDT balance" });
-        return;
+        const order = await db.transaction(async (tx) => {
+          const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, auth.userId));
+          if (!user) throw new Error("USER_NOT_FOUND");
+
+          const usdtBalance = parseFloat(user.usdtBalance);
+          if (usdtBalance < spendUsdt) throw new Error("INSUFFICIENT_USDT");
+
+          await tx.update(usersTable)
+            .set({ usdtBalance: (usdtBalance - spendUsdt).toFixed(8) })
+            .where(eq(usersTable.id, auth.userId));
+
+          await upsertCoinBalance(auth.userId, baseCurrency, receiveAmount, tx as any);
+
+          const [o] = await tx.insert(ordersTable).values({
+            userId: auth.userId,
+            symbol,
+            side: "buy",
+            type: "market",
+            amount: receiveAmount.toFixed(8),
+            price: currentPrice.toFixed(8),
+            status: "filled",
+            filledAmount: receiveAmount.toFixed(8),
+            avgPrice: currentPrice.toFixed(8),
+            total: spendUsdt.toFixed(8),
+          }).returning();
+          return o;
+        });
+
+        res.status(201).json(PlaceOrderResponse.parse({
+          id: order.id,
+          symbol: order.symbol,
+          side: order.side,
+          type: order.type,
+          amount: parseFloat(order.amount),
+          price: order.price ? parseFloat(order.price) : null,
+          status: order.status,
+          filledAmount: parseFloat(order.filledAmount),
+          avgPrice: order.avgPrice ? parseFloat(order.avgPrice) : null,
+          total: order.total ? parseFloat(order.total) : null,
+          createdAt: order.createdAt.toISOString(),
+        }));
+
+      } else {
+        const sellAmount = amount;
+
+        const order = await db.transaction(async (tx) => {
+          const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, auth.userId));
+          if (!user) throw new Error("USER_NOT_FOUND");
+
+          const coinBal = await getCoinBalance(auth.userId, baseCurrency, tx as any);
+          if (coinBal < sellAmount) throw new Error(`INSUFFICIENT_${baseCurrency}`);
+
+          const receiveUsdt = sellAmount * currentPrice;
+
+          await upsertCoinBalance(auth.userId, baseCurrency, -sellAmount, tx as any);
+
+          await tx.update(usersTable)
+            .set({ usdtBalance: (parseFloat(user.usdtBalance) + receiveUsdt).toFixed(8) })
+            .where(eq(usersTable.id, auth.userId));
+
+          const [o] = await tx.insert(ordersTable).values({
+            userId: auth.userId,
+            symbol,
+            side: "sell",
+            type: "market",
+            amount: sellAmount.toFixed(8),
+            price: currentPrice.toFixed(8),
+            status: "filled",
+            filledAmount: sellAmount.toFixed(8),
+            avgPrice: currentPrice.toFixed(8),
+            total: receiveUsdt.toFixed(8),
+          }).returning();
+          return o;
+        });
+
+        res.status(201).json(PlaceOrderResponse.parse({
+          id: order.id,
+          symbol: order.symbol,
+          side: order.side,
+          type: order.type,
+          amount: parseFloat(order.amount),
+          price: order.price ? parseFloat(order.price) : null,
+          status: order.status,
+          filledAmount: parseFloat(order.filledAmount),
+          avgPrice: order.avgPrice ? parseFloat(order.avgPrice) : null,
+          total: order.total ? parseFloat(order.total) : null,
+          createdAt: order.createdAt.toISOString(),
+        }));
       }
-
-      // Deduct USDT
-      await db.update(usersTable)
-        .set({ usdtBalance: (usdtBalance - spendUsdt).toFixed(8) })
-        .where(eq(usersTable.id, auth.userId));
-
-      // Credit coin
-      await upsertCoinBalance(auth.userId, baseCurrency, receiveAmount);
-
-      // Record order
-      const [order] = await db.insert(ordersTable).values({
-        userId: auth.userId,
-        symbol,
-        side: "buy",
-        type: "market",
-        amount: receiveAmount.toFixed(8),
-        price: currentPrice.toFixed(8),
-        status: "filled",
-        filledAmount: receiveAmount.toFixed(8),
-        avgPrice: currentPrice.toFixed(8),
-        total: spendUsdt.toFixed(8),
-      }).returning();
-
-      res.status(201).json(PlaceOrderResponse.parse({
-        id: order.id,
-        symbol: order.symbol,
-        side: order.side,
-        type: order.type,
-        amount: parseFloat(order.amount),
-        price: order.price ? parseFloat(order.price) : null,
-        status: order.status,
-        filledAmount: parseFloat(order.filledAmount),
-        avgPrice: order.avgPrice ? parseFloat(order.avgPrice) : null,
-        total: order.total ? parseFloat(order.total) : null,
-        createdAt: order.createdAt.toISOString(),
-      }));
-
     } else {
-      // Market sell: spend base coin, receive USDT
-      const sellAmount = amount;
-      const coinBal = await getCoinBalance(auth.userId, baseCurrency);
-      if (coinBal < sellAmount) {
-        res.status(400).json({ error: `Insufficient ${baseCurrency} balance` });
-        return;
-      }
+      const orderPrice = limitPrice ?? currentPrice;
 
-      const receiveUsdt = sellAmount * currentPrice;
+      const order = await db.transaction(async (tx) => {
+        const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, auth.userId));
+        if (!user) throw new Error("USER_NOT_FOUND");
 
-      // Deduct coin
-      await upsertCoinBalance(auth.userId, baseCurrency, -sellAmount);
+        if (side === "buy") {
+          const reserveUsdt = amount * orderPrice;
+          const usdtBalance = parseFloat(user.usdtBalance);
+          if (usdtBalance < reserveUsdt) throw new Error("INSUFFICIENT_USDT");
+          await tx.update(usersTable)
+            .set({ usdtBalance: (usdtBalance - reserveUsdt).toFixed(8) })
+            .where(eq(usersTable.id, auth.userId));
+        } else {
+          const coinBal = await getCoinBalance(auth.userId, baseCurrency, tx as any);
+          if (coinBal < amount) throw new Error(`INSUFFICIENT_${baseCurrency}`);
+          await upsertCoinBalance(auth.userId, baseCurrency, -amount, tx as any);
+        }
 
-      // Credit USDT
-      await db.update(usersTable)
-        .set({ usdtBalance: (usdtBalance + receiveUsdt).toFixed(8) })
-        .where(eq(usersTable.id, auth.userId));
-
-      const [order] = await db.insert(ordersTable).values({
-        userId: auth.userId,
-        symbol,
-        side: "sell",
-        type: "market",
-        amount: sellAmount.toFixed(8),
-        price: currentPrice.toFixed(8),
-        status: "filled",
-        filledAmount: sellAmount.toFixed(8),
-        avgPrice: currentPrice.toFixed(8),
-        total: receiveUsdt.toFixed(8),
-      }).returning();
+        const total = amount * orderPrice;
+        const [o] = await tx.insert(ordersTable).values({
+          userId: auth.userId,
+          symbol,
+          side,
+          type: "limit",
+          amount: amount.toFixed(8),
+          price: orderPrice.toFixed(8),
+          status: "open",
+          filledAmount: "0",
+          total: total.toFixed(8),
+        }).returning();
+        return o;
+      });
 
       res.status(201).json(PlaceOrderResponse.parse({
         id: order.id,
@@ -148,56 +192,17 @@ router.post("/orders", async (req, res): Promise<void> => {
         createdAt: order.createdAt.toISOString(),
       }));
     }
-  } else {
-    // Limit order
-    const orderPrice = limitPrice ?? currentPrice;
-
-    if (side === "buy") {
-      const reserveUsdt = amount * orderPrice;
-      if (usdtBalance < reserveUsdt) {
-        res.status(400).json({ error: "Insufficient USDT balance" });
-        return;
-      }
-      // Reserve USDT
-      await db.update(usersTable)
-        .set({ usdtBalance: (usdtBalance - reserveUsdt).toFixed(8) })
-        .where(eq(usersTable.id, auth.userId));
+  } catch (err: any) {
+    if (err.message === "USER_NOT_FOUND") {
+      res.status(404).json({ error: "User not found" });
+    } else if (err.message === "INSUFFICIENT_USDT") {
+      res.status(400).json({ error: "Insufficient USDT balance" });
+    } else if (err.message?.startsWith("INSUFFICIENT_")) {
+      const coin = err.message.replace("INSUFFICIENT_", "");
+      res.status(400).json({ error: `Insufficient ${coin} balance` });
     } else {
-      const coinBal = await getCoinBalance(auth.userId, baseCurrency);
-      if (coinBal < amount) {
-        res.status(400).json({ error: `Insufficient ${baseCurrency} balance` });
-        return;
-      }
-      // Reserve coin
-      await upsertCoinBalance(auth.userId, baseCurrency, -amount);
+      throw err;
     }
-
-    const total = amount * orderPrice;
-    const [order] = await db.insert(ordersTable).values({
-      userId: auth.userId,
-      symbol,
-      side,
-      type: "limit",
-      amount: amount.toFixed(8),
-      price: orderPrice.toFixed(8),
-      status: "open",
-      filledAmount: "0",
-      total: total.toFixed(8),
-    }).returning();
-
-    res.status(201).json(PlaceOrderResponse.parse({
-      id: order.id,
-      symbol: order.symbol,
-      side: order.side,
-      type: order.type,
-      amount: parseFloat(order.amount),
-      price: order.price ? parseFloat(order.price) : null,
-      status: order.status,
-      filledAmount: parseFloat(order.filledAmount),
-      avgPrice: order.avgPrice ? parseFloat(order.avgPrice) : null,
-      total: order.total ? parseFloat(order.total) : null,
-      createdAt: order.createdAt.toISOString(),
-    }));
   }
 });
 
@@ -240,40 +245,49 @@ router.delete("/orders/:id", async (req, res): Promise<void> => {
   }
 
   const orderId = parseInt(req.params.id);
-  const [order] = await db
-    .select()
-    .from(ordersTable)
-    .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, auth.userId)));
 
-  if (!order) {
-    res.status(404).json({ error: "Order not found" });
+  await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select()
+      .from(ordersTable)
+      .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, auth.userId)));
+
+    if (!order) throw new Error("ORDER_NOT_FOUND");
+    if (order.status !== "open") throw new Error("ORDER_NOT_OPEN");
+
+    const [user] = await tx.select().from(usersTable).where(eq(usersTable.id, auth.userId));
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    const baseCurrency = order.symbol.replace(/USDT$/, "");
+    const orderPrice = order.price ? parseFloat(order.price) : getCurrentPrice(baseCurrency) ?? 1;
+    const orderAmount = parseFloat(order.amount);
+
+    if (order.side === "buy") {
+      const refundUsdt = orderAmount * orderPrice;
+      await tx.update(usersTable)
+        .set({ usdtBalance: (parseFloat(user.usdtBalance) + refundUsdt).toFixed(8) })
+        .where(eq(usersTable.id, auth.userId));
+    } else {
+      await upsertCoinBalance(auth.userId, baseCurrency, orderAmount, tx as any);
+    }
+
+    await tx.update(ordersTable)
+      .set({ status: "cancelled" })
+      .where(eq(ordersTable.id, orderId));
+  }).catch((err) => {
+    if (err.message === "ORDER_NOT_FOUND") {
+      res.status(404).json({ error: "Order not found" });
+    } else if (err.message === "ORDER_NOT_OPEN") {
+      res.status(400).json({ error: "Only open orders can be cancelled" });
+    } else {
+      throw err;
+    }
     return;
+  });
+
+  if (!res.headersSent) {
+    res.json({ success: true });
   }
-  if (order.status !== "open") {
-    res.status(400).json({ error: "Only open orders can be cancelled" });
-    return;
-  }
-
-  // Refund reserved balance
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId));
-  const baseCurrency = order.symbol.replace(/USDT$/, "");
-  const orderPrice = order.price ? parseFloat(order.price) : getCurrentPrice(baseCurrency) ?? 1;
-  const orderAmount = parseFloat(order.amount);
-
-  if (order.side === "buy") {
-    const refundUsdt = orderAmount * orderPrice;
-    await db.update(usersTable)
-      .set({ usdtBalance: (parseFloat(user!.usdtBalance) + refundUsdt).toFixed(8) })
-      .where(eq(usersTable.id, auth.userId));
-  } else {
-    await upsertCoinBalance(auth.userId, baseCurrency, orderAmount);
-  }
-
-  await db.update(ordersTable)
-    .set({ status: "cancelled" })
-    .where(eq(ordersTable.id, orderId));
-
-  res.json({ success: true });
 });
 
 router.get("/orders/balances", async (req, res): Promise<void> => {

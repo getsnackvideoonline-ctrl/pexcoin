@@ -11,20 +11,40 @@ import crypto from "crypto";
 
 const router = Router();
 
+const JWT_SECRET = process.env.JWT_SECRET ?? "pexcoin_default_secret_please_set_JWT_SECRET";
+
 function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "pexcoin_salt").digest("hex");
+  const salt = process.env.PASSWORD_SALT ?? "pexcoin_salt";
+  return crypto.createHash("sha256").update(password + salt).digest("hex");
 }
 
 function generateToken(userId: number, role: string): string {
-  const payload = { userId, role, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 };
-  return Buffer.from(JSON.stringify(payload)).toString("base64");
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({
+    userId,
+    role,
+    exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+  })).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", JWT_SECRET)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+  return `${header}.${payload}.${signature}`;
 }
 
 function verifyToken(token: string): { userId: number; role: string; exp: number } | null {
   try {
-    const payload = JSON.parse(Buffer.from(token, "base64").toString());
-    if (payload.exp < Date.now()) return null;
-    return payload;
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [header, payload, signature] = parts;
+    const expectedSig = crypto
+      .createHmac("sha256", JWT_SECRET)
+      .update(`${header}.${payload}`)
+      .digest("base64url");
+    if (signature !== expectedSig) return null;
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString());
+    if (data.exp < Math.floor(Date.now() / 1000)) return null;
+    return data;
   } catch {
     return null;
   }
@@ -55,7 +75,6 @@ function formatUserForResponse(user: typeof usersTable.$inferSelect) {
   };
 }
 
-// Validate invite code endpoint
 router.get("/auth/invite/validate", async (req, res): Promise<void> => {
   const code = (req.query.code as string)?.toUpperCase();
   if (!code) {
@@ -86,13 +105,11 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
   const { email, password, name, phone, inviteCode } = parsed.data;
 
-  // Validate Gmail only
   if (!email.toLowerCase().endsWith("@gmail.com")) {
     res.status(400).json({ error: "Only Gmail addresses (@gmail.com) are accepted for registration" });
     return;
   }
 
-  // Validate invite code
   const [referrer] = await db
     .select()
     .from(usersTable)
@@ -103,14 +120,12 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
-  // Check duplicate email
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase()));
   if (existing) {
     res.status(409).json({ error: "This email is already registered" });
     return;
   }
 
-  // Generate unique invite code for new user
   let newInviteCode: string;
   let codeExists = true;
   do {

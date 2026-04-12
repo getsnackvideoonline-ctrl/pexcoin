@@ -22,17 +22,36 @@ import crypto from "crypto";
 
 const router = Router();
 
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "admin123";
-const COMMISSION_RATE = 0.05; // 5% commission to referrer
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME ?? "admin";
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH ?? "";
+const ADMIN_PASSWORD_PLAIN = process.env.ADMIN_PASSWORD ?? "admin123";
+const COMMISSION_RATE = 0.05;
+
+const JWT_SECRET = process.env.JWT_SECRET ?? "pexcoin_default_secret_please_set_JWT_SECRET";
 
 function hashPassword(password: string): string {
-  return crypto.createHash("sha256").update(password + "pexcoin_salt").digest("hex");
+  const salt = process.env.PASSWORD_SALT ?? "pexcoin_salt";
+  return crypto.createHash("sha256").update(password + salt).digest("hex");
+}
+
+function adminPasswordMatches(inputPassword: string): boolean {
+  if (ADMIN_PASSWORD_HASH) {
+    return hashPassword(inputPassword) === ADMIN_PASSWORD_HASH;
+  }
+  return inputPassword === ADMIN_PASSWORD_PLAIN;
 }
 
 function generateAdminToken(): string {
-  const payload = { role: "admin", exp: Date.now() + 24 * 60 * 60 * 1000 };
-  return Buffer.from(JSON.stringify(payload)).toString("base64");
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({
+    role: "admin",
+    exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+  })).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", JWT_SECRET)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+  return `${header}.${payload}.${signature}`;
 }
 
 function isAdmin(req: { headers: { authorization?: string } }): boolean {
@@ -42,8 +61,16 @@ function isAdmin(req: { headers: { authorization?: string } }): boolean {
 
 function verifyAdminToken(token: string): boolean {
   try {
-    const payload = JSON.parse(Buffer.from(token, "base64").toString());
-    return payload.role === "admin" && payload.exp > Date.now();
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const [header, payload, signature] = parts;
+    const expectedSig = crypto
+      .createHmac("sha256", JWT_SECRET)
+      .update(`${header}.${payload}`)
+      .digest("base64url");
+    if (signature !== expectedSig) return false;
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString());
+    return data.role === "admin" && data.exp > Math.floor(Date.now() / 1000);
   } catch {
     return false;
   }
@@ -69,7 +96,7 @@ router.post("/admin/login", async (req, res): Promise<void> => {
 
   const { username, password } = parsed.data;
 
-  if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+  if (username === ADMIN_USERNAME && adminPasswordMatches(password)) {
     const token = generateAdminToken();
     const response = AdminLoginResponse.parse({ token, role: "admin" });
     res.json(response);
@@ -218,7 +245,6 @@ router.post("/admin/transactions/:id/approve", async (req, res): Promise<void> =
     return;
   }
 
-  // Credit user balance on deposit
   if (transaction.type === "deposit") {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, transaction.userId));
     if (user) {
@@ -233,7 +259,6 @@ router.post("/admin/transactions/:id/approve", async (req, res): Promise<void> =
         await db.update(usersTable).set(userUpdates).where(eq(usersTable.id, user.id));
       }
 
-      // Pay 5% commission to referrer if they have one
       if (user.referredBy) {
         const commission = amount * COMMISSION_RATE;
         const [referrer] = await db.select().from(usersTable).where(eq(usersTable.id, user.referredBy));
@@ -241,7 +266,6 @@ router.post("/admin/transactions/:id/approve", async (req, res): Promise<void> =
           const referrerUpdates: Record<string, string> = {
             commissionEarned: (parseFloat(referrer.commissionEarned) + commission).toString(),
           };
-          // Add commission to referrer's same currency balance
           if (currency === "USDT") referrerUpdates.usdtBalance = (parseFloat(referrer.usdtBalance) + commission).toString();
           else if (currency === "BTC") referrerUpdates.btcBalance = (parseFloat(referrer.btcBalance) + commission).toString();
           else if (currency === "ETH") referrerUpdates.ethBalance = (parseFloat(referrer.ethBalance) + commission).toString();

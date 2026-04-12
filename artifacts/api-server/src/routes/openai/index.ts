@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { db, conversations, messages } from "@workspace/db";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import { eq, asc } from "drizzle-orm";
 import { getAuthUser } from "../auth";
 import { SendOpenaiMessageBody, CreateOpenaiConversationBody } from "@workspace/api-zod";
@@ -19,6 +18,15 @@ You help users with:
 
 Always be helpful, clear, and remind users that crypto trading involves risk and this is not financial advice.
 Keep responses concise and actionable. Use bullet points for lists. Format prices with $ signs.`;
+
+function getOpenAIClient() {
+  try {
+    const { openai } = require("@workspace/integrations-openai-ai-server");
+    return openai;
+  } catch {
+    return null;
+  }
+}
 
 router.get("/openai/conversations", async (req, res): Promise<void> => {
   const auth = getAuthUser(req);
@@ -157,6 +165,12 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     return;
   }
 
+  const openai = getOpenAIClient();
+  if (!openai) {
+    res.status(503).json({ error: "AI assistant is not configured. Please provision the OpenAI integration." });
+    return;
+  }
+
   const id = parseInt(req.params.id);
   const [convo] = await db
     .select()
@@ -201,7 +215,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   let fullResponse = "";
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-5.2",
+    model: "gpt-4o",
     max_completion_tokens: 8192,
     messages: chatMessages,
     stream: true,
