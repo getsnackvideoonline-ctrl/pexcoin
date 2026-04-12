@@ -23,6 +23,7 @@ export const RegisterBody = zod.object({
   password: zod.string(),
   name: zod.string(),
   phone: zod.string().nullish(),
+  inviteCode: zod.string(),
 });
 
 /**
@@ -40,6 +41,10 @@ export const LoginResponse = zod.object({
     name: zod.string(),
     phone: zod.string().nullish(),
     role: zod.string(),
+    status: zod.string().nullish(),
+    inviteCode: zod.string().nullish(),
+    referredBy: zod.number().nullish(),
+    commissionEarned: zod.number().nullish(),
     createdAt: zod.string(),
   }),
   token: zod.string(),
@@ -61,6 +66,10 @@ export const GetMeResponse = zod.object({
   name: zod.string(),
   phone: zod.string().nullish(),
   role: zod.string(),
+  status: zod.string().nullish(),
+  inviteCode: zod.string().nullish(),
+  referredBy: zod.number().nullish(),
+  commissionEarned: zod.number().nullish(),
   createdAt: zod.string(),
 });
 
@@ -391,3 +400,31 @@ export const CreateStripeCheckoutResponse = zod.object({
 export const ListStripeProductsResponse = zod.object({
   data: zod.array(zod.object({}).passthrough()),
 });
+
+/**
+ * @summary Place a new trade order
+ */
+export const PlaceOrderBody = zod.object({
+  symbol: zod.string(),
+  side: zod.enum(["buy", "sell"]),
+  type: zod.enum(["market", "limit"]),
+  amount: zod.number(),
+  price: zod.number().nullish(),
+  total: zod.number().nullish(),
+});
+
+export const PlaceOrderResponse = zod.object({
+  id: zod.number(),
+  symbol: zod.string(),
+  side: zod.string(),
+  type: zod.string(),
+  amount: zod.number(),
+  price: zod.number().nullish(),
+  status: zod.string(),
+  filledAmount: zod.number(),
+  avgPrice: zod.number().nullish(),
+  total: zod.number().nullish(),
+  createdAt: zod.string(),
+});
+
+export const GetMyOrdersResponse = zod.array(PlaceOrderResponse);

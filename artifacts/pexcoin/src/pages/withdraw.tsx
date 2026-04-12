@@ -66,7 +66,7 @@ export default function Withdraw() {
     <Layout>
       <div className="flex-1 flex flex-col items-center justify-center p-4 py-8">
         <div className="w-full max-w-md mb-4">
-          <Link href="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors">
+          <Link to="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to Dashboard
           </Link>
         </div>

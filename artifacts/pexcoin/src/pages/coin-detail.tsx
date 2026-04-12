@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetCryptoPrices, useGetCoinChart, useGetMyBalance } from "@workspace/api-client-react";
+import { useGetCryptoPrices, useGetCoinChart, useGetMyBalance, usePlaceOrder } from "@workspace/api-client-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -83,6 +83,7 @@ export default function CoinDetail() {
   );
 
   const { data: balance } = useGetMyBalance();
+  const placeMutation = usePlaceOrder();
 
   const coin = prices?.find((p) => p.symbol === decodedSymbol);
   const coinName = coin?.name ?? coinSymbol;
@@ -108,11 +109,40 @@ export default function CoinDetail() {
       toast({ title: "Enter an amount", variant: "destructive" });
       return;
     }
-    toast({
-      title: `${side === "buy" ? "Buy" : "Sell"} Order Placed`,
-      description: `${side === "buy" ? "Buying" : "Selling"} ${amount} ${coinSymbol} at $${formatPrice(effectivePrice)}`,
-    });
-    setAmount("");
+    if (currentPrice <= 0) {
+      toast({ title: "Price unavailable", description: "Cannot place order without a current price", variant: "destructive" });
+      return;
+    }
+
+    const orderAmount = parseFloat(amount);
+    const symbol = `${coinSymbol}USDT`;
+
+    placeMutation.mutate(
+      {
+        symbol,
+        side,
+        type: orderType,
+        amount: orderAmount,
+        price: orderType === "limit" ? (parseFloat(limitPrice) || currentPrice) : undefined,
+        total: orderType === "market" && side === "buy" ? orderAmount * currentPrice : undefined,
+      },
+      {
+        onSuccess: (data) => {
+          const filled = data.filledAmount ?? orderAmount;
+          const atPrice = data.avgPrice ?? data.price ?? currentPrice;
+          toast({
+            title: `${side === "buy" ? "Buy" : "Sell"} Order ${data.status === "filled" ? "Filled" : "Placed"}`,
+            description: `${side === "buy" ? "Bought" : "Sold"} ${Number(filled).toFixed(6)} ${coinSymbol} @ $${formatPrice(Number(atPrice))}`,
+          });
+          setAmount("");
+          setLimitPrice("");
+        },
+        onError: (error: any) => {
+          const msg = error?.data?.error ?? error?.message ?? "An error occurred";
+          toast({ title: "Order failed", description: msg, variant: "destructive" });
+        },
+      }
+    );
   };
 
   // Get X-axis interval based on timeframe
@@ -404,15 +434,17 @@ export default function CoinDetail() {
                     <Button
                       className="bg-green-600 hover:bg-green-700 text-white gap-1.5 h-10 font-bold"
                       onClick={() => handleTrade("buy")}
+                      disabled={placeMutation.isPending}
                     >
-                      <ArrowUpRight className="h-4 w-4" /> Buy
+                      {placeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpRight className="h-4 w-4" />} Buy
                     </Button>
                     <Button
                       variant="destructive"
                       className="gap-1.5 h-10 font-bold"
                       onClick={() => handleTrade("sell")}
+                      disabled={placeMutation.isPending}
                     >
-                      <ArrowDownRight className="h-4 w-4" /> Sell
+                      {placeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowDownRight className="h-4 w-4" />} Sell
                     </Button>
                   </div>
                 </div>

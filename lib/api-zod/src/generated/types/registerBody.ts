@@ -12,4 +12,5 @@ export interface RegisterBody {
   name: string;
   /** @nullable */
   phone?: string | null;
+  inviteCode: string;
 }

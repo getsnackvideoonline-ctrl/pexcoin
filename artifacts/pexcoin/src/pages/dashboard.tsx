@@ -63,7 +63,7 @@ function InviteCard({ inviteCode, commissionEarned, role }: { inviteCode: string
               <Shield className="h-3.5 w-3.5" /> Platform Admin
             </Badge>
           )}
-          <Link href="/admin">
+          <Link to="/admin">
             <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs">
               <ExternalLink className="h-3 w-3" />
               Admin Panel
@@ -181,10 +181,10 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/deposit">
+            <Link to="/deposit">
               <Button variant="default" className="font-bold">Deposit</Button>
             </Link>
-            <Link href="/withdraw">
+            <Link to="/withdraw">
               <Button variant="outline" className="font-bold">Withdraw</Button>
             </Link>
           </div>
@@ -301,7 +301,7 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 No transactions yet.{" "}
-                <Link href="/deposit" className="text-primary hover:underline">Make your first deposit</Link>
+                <Link to="/deposit" className="text-primary hover:underline">Make your first deposit</Link>
               </div>
             )}
           </CardContent>

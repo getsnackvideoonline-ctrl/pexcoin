@@ -13,5 +13,13 @@ export interface User {
   /** @nullable */
   phone?: string | null;
   role: string;
+  /** @nullable */
+  status?: string | null;
+  /** @nullable */
+  inviteCode?: string | null;
+  /** @nullable */
+  referredBy?: number | null;
+  /** @nullable */
+  commissionEarned?: number | null;
   createdAt: string;
 }
