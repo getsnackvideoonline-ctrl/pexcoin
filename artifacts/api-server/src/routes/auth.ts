@@ -105,24 +105,39 @@ router.post("/auth/register", async (req, res): Promise<void> => {
 
   const { email, password, name, phone, inviteCode } = parsed.data;
 
-  if (!email.toLowerCase().endsWith("@gmail.com")) {
-    res.status(400).json({ error: "Only Gmail addresses (@gmail.com) are accepted for registration" });
+  if (!email || !email.includes("@") || email.length < 5) {
+    res.status(400).json({ error: "Please enter a valid email address" });
     return;
   }
 
-  const [referrer] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.inviteCode, inviteCode.toUpperCase()));
-
-  if (!referrer) {
-    res.status(400).json({ error: "Invalid invitation code. Please get a valid invite link from an existing member." });
+  if (!password || password.length < 6) {
+    res.status(400).json({ error: "Password must be at least 6 characters" });
     return;
+  }
+
+  if (!name || name.trim().length < 2) {
+    res.status(400).json({ error: "Please enter your full name (at least 2 characters)" });
+    return;
+  }
+
+  // Validate referral code if provided (optional)
+  let referrerId: number | undefined;
+  if (inviteCode && inviteCode.trim().length > 0) {
+    const [referrer] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.inviteCode, inviteCode.trim().toUpperCase()));
+
+    if (!referrer) {
+      res.status(400).json({ error: "Invalid referral code. Please check the code and try again, or leave it empty to register without a referral." });
+      return;
+    }
+    referrerId = referrer.id;
   }
 
   const [existing] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase()));
   if (existing) {
-    res.status(409).json({ error: "This email is already registered" });
+    res.status(409).json({ error: "This email is already registered. Please sign in instead." });
     return;
   }
 
@@ -137,10 +152,10 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const [user] = await db.insert(usersTable).values({
     email: email.toLowerCase(),
     password: hashPassword(password),
-    name,
-    phone: phone ?? undefined,
+    name: name.trim(),
+    phone: phone?.trim() || undefined,
     inviteCode: newInviteCode,
-    referredBy: referrer.id,
+    referredBy: referrerId,
   }).returning();
 
   const token = generateToken(user.id, user.role);
@@ -213,6 +228,32 @@ router.get("/auth/referrals", async (req, res): Promise<void> => {
     .where(eq(usersTable.referredBy, auth.userId));
 
   res.json(referrals.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })));
+});
+
+router.get("/auth/referral-stats", async (req, res): Promise<void> => {
+  const auth = getAuthUser(req);
+  if (!auth) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  const [currentUser] = await db.select().from(usersTable).where(eq(usersTable.id, auth.userId));
+  if (!currentUser) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const referrals = await db
+    .select({ id: usersTable.id, name: usersTable.name, createdAt: usersTable.createdAt })
+    .from(usersTable)
+    .where(eq(usersTable.referredBy, auth.userId));
+
+  res.json({
+    inviteCode: currentUser.inviteCode,
+    referralCount: referrals.length,
+    commissionEarned: parseFloat(currentUser.commissionEarned),
+    referrals: referrals.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+  });
 });
 
 export { verifyToken };

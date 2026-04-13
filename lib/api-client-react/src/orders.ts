@@ -126,6 +126,21 @@ export function useGetBinanceStatus() {
   });
 }
 
+export interface ReferralStats {
+  inviteCode: string;
+  referralCount: number;
+  commissionEarned: number;
+  referrals: { id: number; name: string; createdAt: string }[];
+}
+
+export function useGetReferralStats() {
+  return useQuery({
+    queryKey: ["/api/auth/referral-stats"],
+    queryFn: () => customFetch<ReferralStats>("/api/auth/referral-stats"),
+    staleTime: 60_000,
+  });
+}
+
 export function usePlaceOrderBinance() {
   return useMutation({
     mutationFn: (data: {

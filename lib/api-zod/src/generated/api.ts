@@ -23,7 +23,7 @@ export const RegisterBody = zod.object({
   password: zod.string(),
   name: zod.string(),
   phone: zod.string().nullish(),
-  inviteCode: zod.string(),
+  inviteCode: zod.string().nullish(),
 });
 
 /**

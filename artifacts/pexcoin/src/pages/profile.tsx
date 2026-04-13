@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useGetMe, useGetMyBalance, useGetMyTransactions } from "@workspace/api-client-react";
+import { useGetMe, useGetMyBalance, useGetMyTransactions, useGetReferralStats } from "@workspace/api-client-react";
 import {
   User, Mail, Phone, Shield, Crown, Copy, Check, Key,
-  TrendingUp, Wallet, Clock, LogOut, ChevronRight
+  TrendingUp, Wallet, Clock, LogOut, ChevronRight, Gift, Users, DollarSign, Link2,
 } from "lucide-react";
 import { removeToken } from "@/lib/auth-utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,8 +27,10 @@ export default function Profile() {
   const { data: user } = useGetMe({ query: { retry: false } });
   const { data: balance } = useGetMyBalance();
   const { data: transactions } = useGetMyTransactions();
+  const { data: referralStats } = useGetReferralStats();
 
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [editingPassword, setEditingPassword] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -37,15 +39,25 @@ export default function Profile() {
   const isSuperAdmin = user?.role === "super_admin";
   const isAdmin = user?.role === "admin" || isSuperAdmin;
 
-  const inviteLink = user?.inviteCode
-    ? `${window.location.origin}${BASE}/register?ref=${user.inviteCode}`
+  const inviteCode = referralStats?.inviteCode ?? user?.inviteCode ?? "";
+  const inviteLink = inviteCode
+    ? `${window.location.origin}${BASE}/register?ref=${inviteCode}`
     : "";
 
   const copyCode = async () => {
-    await navigator.clipboard.writeText(inviteLink);
+    if (!inviteCode) return;
+    await navigator.clipboard.writeText(inviteCode);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
-    toast({ title: "Invite link copied!" });
+    toast({ title: "Referral code copied!" });
+  };
+
+  const copyLink = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+    toast({ title: "Referral link copied!", description: "Share it with friends to earn rewards." });
   };
 
   const handleLogout = () => {
@@ -166,28 +178,90 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Invite Link */}
-        {user?.inviteCode && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" /> Your Referral Link
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border/40">
-                <code className="text-xs text-muted-foreground flex-1 truncate select-all">{inviteLink}</code>
-                <Button size="sm" variant="outline" className="shrink-0 h-7 gap-1 text-xs" onClick={copyCode}>
-                  {copiedCode ? <><Check className="h-3 w-3 text-green-500" />Copied</> : <><Copy className="h-3 w-3" />Copy</>}
-                </Button>
+        {/* Referral Center */}
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Gift className="h-4 w-4 text-primary" /> Referral Program
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Stats Row */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 rounded-lg bg-muted/40 border border-border/40">
+                <Users className="h-4 w-4 text-primary mx-auto mb-1" />
+                <p className="text-lg font-bold">{referralStats?.referralCount ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Referrals</p>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Your code: <span className="font-mono font-bold text-foreground">{user.inviteCode}</span></span>
-                <span className="text-primary font-medium">Earn 5% per referral deposit</span>
+              <div className="text-center p-3 rounded-lg bg-muted/40 border border-border/40">
+                <DollarSign className="h-4 w-4 text-[#0ecb81] mx-auto mb-1" />
+                <p className="text-lg font-bold">${(referralStats?.commissionEarned ?? user?.commissionEarned ?? 0).toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">Earned</p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="text-center p-3 rounded-lg bg-muted/40 border border-border/40">
+                <TrendingUp className="h-4 w-4 text-[#F0B90B] mx-auto mb-1" />
+                <p className="text-lg font-bold">5%</p>
+                <p className="text-xs text-muted-foreground">Commission</p>
+              </div>
+            </div>
+
+            {/* Your Code */}
+            {inviteCode && (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5 font-medium">Your Referral Code</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 p-2.5 bg-primary/5 border border-primary/20 rounded-lg text-center">
+                      <span className="font-mono font-bold text-lg tracking-widest text-primary">{inviteCode}</span>
+                    </div>
+                    <Button size="sm" variant="outline" className="shrink-0 gap-1 text-xs h-10" onClick={copyCode}>
+                      {copiedCode ? <><Check className="h-3.5 w-3.5 text-[#0ecb81]" /> Copied!</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5 font-medium">Your Referral Link</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 p-2.5 bg-muted/50 rounded-lg border border-border/40 min-w-0">
+                      <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <code className="text-xs text-muted-foreground flex-1 truncate select-all">{inviteLink}</code>
+                    </div>
+                    <Button size="sm" variant="outline" className="shrink-0 gap-1 text-xs h-10" onClick={copyLink}>
+                      {copiedLink ? <><Check className="h-3.5 w-3.5 text-[#0ecb81]" /> Copied!</> : <><Copy className="h-3.5 w-3.5" /> Copy Link</>}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-[#F0B90B]/5 border border-[#F0B90B]/20 text-xs text-muted-foreground">
+                  Share your link or code. When someone signs up and deposits, you earn <strong className="text-[#F0B90B]">5% commission</strong> on their deposit.
+                </div>
+              </>
+            )}
+
+            {/* Referred Users */}
+            {(referralStats?.referrals?.length ?? 0) > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 font-medium">People You Referred</p>
+                <div className="space-y-2">
+                  {referralStats!.referrals.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                          {r.name[0]?.toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium">{r.name}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(r.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Security */}
         <Card>
